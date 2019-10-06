@@ -3,6 +3,7 @@ use classicube::{
   ChatEvents, Chat_Add, Event_RegisterChat, IGameComponent, MsgType_MSG_TYPE_NORMAL,
 };
 use lazy_static::lazy_static;
+use rand::seq::SliceRandom;
 use std::{
   os::raw::{c_int, c_void},
   ptr,
@@ -53,10 +54,16 @@ extern "C" fn chat_on_received(_obj: *mut c_void, msg: *const classicube::String
     thread::spawn(move || {
       if let Some(chatsounds) = CHATSOUNDS.lock().unwrap().as_mut() {
         let text = text.trim();
-        let mut found = chatsounds.find(text);
-        if !found.is_empty() {
-          let mut loaded = found[0].download();
-          loaded.play(&chatsounds.sink);
+        if text.to_lowercase() == "sh" {
+          chatsounds.stop_all();
+          return;
+        }
+
+        let mut sounds = chatsounds.find(text);
+        let mut rng = rand::thread_rng();
+
+        if let Some(sound) = sounds.choose_mut(&mut rng) {
+          sound.play(&chatsounds.device, &mut chatsounds.sinks);
         }
       }
     });
@@ -72,25 +79,37 @@ extern "C" fn init() {
     );
   }
 
-  let chatsounds = Chatsounds::new(vec![
-    (
-      "Metastruct/garrysmod-chatsounds".to_string(),
-      "sound/chatsounds/autoadd".to_string(),
-    ),
-    (
-      "PAC3-Server/chatsounds".to_string(),
-      "sounds/chatsounds".to_string(),
-    ),
-  ]);
+  {
+    let chatsounds = Chatsounds::new();
 
-  chatsounds.sink.set_volume(0.1);
+    *CHATSOUNDS.lock().unwrap() = Some(chatsounds);
+  }
 
-  *CHATSOUNDS.lock().unwrap() = Some(chatsounds);
-}
+  thread::spawn(move || {
+    if let Some(chatsounds) = CHATSOUNDS.lock().unwrap().as_mut() {
+      print("Metastruct/garrysmod-chatsounds");
+      chatsounds.load_github_api(
+        "Metastruct/garrysmod-chatsounds".to_string(),
+        "sound/chatsounds/autoadd".to_string(),
+      );
 
-#[test]
-fn asdf() {
-  init();
+      print("PAC3-Server/chatsounds");
+      chatsounds.load_github_api(
+        "PAC3-Server/chatsounds".to_string(),
+        "sounds/chatsounds".to_string(),
+      );
+
+      for folder in &[
+        "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
+      ] {
+        print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
+        chatsounds.load_github_api(
+          "PAC3-Server/chatsounds-valve-games".to_string(),
+          folder.to_string(),
+        );
+      }
+    }
+  });
 }
 
 #[no_mangle]

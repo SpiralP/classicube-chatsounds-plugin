@@ -12,5 +12,6 @@ crate-type = ["cdylib"]
 [dependencies]
 chatsounds = { path = "../rust-chatsounds" }
 classicube = { path = "../rust-classicube" }
-winapi = { version = "0.3.8", features = ["winuser"] }
 lazy_static = "1.4.0"
+rand = "0.7.2"
+winapi = { version = "0.3.8", features = ["winuser"] }
