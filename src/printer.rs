@@ -5,6 +5,7 @@ use classicube::{
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::{
   collections::VecDeque,
+  convert::TryInto,
   time::{Duration, Instant},
 };
 
@@ -44,7 +45,7 @@ impl Printer {
     };
 
     unsafe {
-      Chat_AddOf(&cc_str, msg_type);
+      Chat_AddOf(&cc_str, msg_type.try_into().unwrap());
     }
   }
 

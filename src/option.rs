@@ -1,4 +1,4 @@
-use classicube::{Key, Options_Get, STRING_SIZE};
+use classicube::{Key_, Options_Get, STRING_SIZE};
 use std::{ffi::CString, mem};
 
 const INPUT_NAMES: [&str; 133] = [
@@ -137,12 +137,12 @@ const INPUT_NAMES: [&str; 133] = [
   "MiddleMouse",
 ];
 
-pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key> {
+pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key_> {
   let s = s.as_ref();
   INPUT_NAMES
     .iter()
     .position(|&item| item == s)
-    .map(|n| n as Key)
+    .map(|n| n as Key_)
 }
 
 pub fn get<S: Into<Vec<u8>>>(s: S) -> Option<String> {

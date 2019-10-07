@@ -1,16 +1,18 @@
 use crate::{option, option::get_key_from_input_name, printer::Printer};
 use chatsounds::Chatsounds;
 use classicube::{
-  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_UnregisterChat, Event_UnregisterInput,
-  InputEvents, Key, Key__KEY_0, Key__KEY_9, Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE,
-  Key__KEY_KP_ENTER, Key__KEY_SLASH, Key__KEY_SPACE, Key__KEY_TAB, Key__KEY_Z,
-  MsgType_MSG_TYPE_NORMAL, ScheduledTask, Server,
+  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
+  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_0, Key__KEY_9,
+  Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE, Key__KEY_KP_ENTER, Key__KEY_SLASH,
+  Key__KEY_SPACE, Key__KEY_TAB, Key__KEY_Z, MsgType, MsgType_MSG_TYPE_NORMAL, ScheduledTask,
+  Server,
 };
 use detour::static_detour;
 use lazy_static::lazy_static;
 use parking_lot::{Mutex, Once};
 use rand::seq::SliceRandom;
 use std::{
+  convert::TryInto,
   fs,
   os::raw::{c_int, c_void},
   path::Path,
@@ -48,7 +50,7 @@ impl Chat {
       .to_lowercase()
   }
 
-  pub fn handle_key(&mut self, key: Key, repeat: bool) {
+  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
       if !self.open && (key == CHAT_KEY.unwrap_or(0) || key == Key__KEY_SLASH) {
         // print("OPEN");
@@ -66,7 +68,9 @@ impl Chat {
         return;
       }
     }
+  }
 
+  pub fn handle_key_press(&mut self, key: Key_) {
     if self.open {
       // TODO ' and other symbols!
       // TODO shift + 2 should be @?
@@ -126,6 +130,8 @@ extern "C" fn on_chat_received(
   full_msg: *const classicube::String,
   msg_type: c_int,
 ) {
+  let msg_type: MsgType = msg_type.try_into().unwrap();
+
   if msg_type != MsgType_MSG_TYPE_NORMAL {
     return;
   }
@@ -155,19 +161,28 @@ extern "C" fn on_chat_received(
 
 // TODO init these in load()
 lazy_static! {
-  static ref CHAT_KEY: Option<Key> =
+  static ref CHAT_KEY: Option<Key_> =
     { option::get("key-Chat").and_then(|s| get_key_from_input_name(&s)) };
-  static ref SEND_CHAT_KEY: Option<Key> =
+  static ref SEND_CHAT_KEY: Option<Key_> =
     { option::get("key-SendChat").and_then(|s| get_key_from_input_name(&s)) };
 }
 
-extern "C" fn on_key_down(_obj: *mut c_void, key: Key, repeat: u8) {
+extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
+  let key: Key_ = key.try_into().unwrap();
+
   let mut chat = CHAT.lock();
-  chat.handle_key(key, repeat != 0);
+  chat.handle_key_down(key, repeat != 0);
 
   if chat.open && key == Key__KEY_TAB {
     print("autocomplete me baby");
   }
+}
+
+extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
+  let key: Key_ = key.try_into().unwrap();
+
+  let mut chat = CHAT.lock();
+  chat.handle_key_press(key);
 }
 
 fn tick_detour(task: *mut ScheduledTask) {
@@ -191,6 +206,7 @@ pub fn load() {
       );
 
       Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+      Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
     }
 
     *events_registered = true;
@@ -263,6 +279,7 @@ pub fn unload() {
       );
 
       Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+      Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
     }
   }
 
