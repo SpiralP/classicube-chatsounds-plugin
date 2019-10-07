@@ -51,7 +51,7 @@ impl Chat {
   pub fn handle_key(&mut self, key: Key, repeat: bool) {
     if !repeat {
       if !self.open && (key == CHAT_KEY.unwrap_or(0) || key == Key__KEY_SLASH) {
-        print("OPEN");
+        // print("OPEN");
 
         self.open = true;
         self.text.clear();
@@ -59,7 +59,7 @@ impl Chat {
       }
 
       if key == SEND_CHAT_KEY.unwrap_or(0) || key == Key__KEY_KP_ENTER || key == Key__KEY_ESCAPE {
-        print("CLOSE");
+        // print("CLOSE");
 
         self.open = false;
         self.text.clear();
@@ -78,9 +78,12 @@ impl Chat {
         self.text.pop();
       } else if key == Key__KEY_SPACE {
         self.text.push(b' ');
+
+        // TODO delete/cursor pos :sob:
+        // } else if key == Key__KEY_DELETE {
       }
 
-      print(self.get_text());
+      // print(self.get_text());
     }
   }
 }
@@ -89,21 +92,8 @@ fn print<T: Into<String>>(s: T) {
   PRINTER.lock().print(s)
 }
 
-extern "C" fn on_chat_received(
-  _obj: *mut c_void,
-  full_msg: *const classicube::String,
-  msg_type: c_int,
-) {
-  if msg_type != MsgType_MSG_TYPE_NORMAL {
-    return;
-  }
-  let full_msg = if full_msg.is_null() {
-    return;
-  } else {
-    unsafe { *full_msg }
-  };
-
-  let mut full_msg = full_msg.to_string();
+fn handle_chat_message<S: Into<String>>(full_msg: S) {
+  let mut full_msg = full_msg.into();
 
   if let Some(pos) = full_msg.rfind("&f") {
     let msg = full_msg.split_off(pos + 2);
@@ -127,6 +117,42 @@ extern "C" fn on_chat_received(
   }
 }
 
+lazy_static! {
+  static ref CHAT_LAST: Mutex<Option<String>> = Mutex::new(None);
+}
+
+extern "C" fn on_chat_received(
+  _obj: *mut c_void,
+  full_msg: *const classicube::String,
+  msg_type: c_int,
+) {
+  if msg_type != MsgType_MSG_TYPE_NORMAL {
+    return;
+  }
+  let full_msg = if full_msg.is_null() {
+    return;
+  } else {
+    unsafe { *full_msg }
+  };
+
+  let mut full_msg = full_msg.to_string();
+
+  let mut chat_last = CHAT_LAST.lock();
+
+  if !full_msg.starts_with("> &f") {
+    *chat_last = Some(full_msg.clone());
+  } else if let Some(chat_last) = &*chat_last {
+    // we're a continue message
+    full_msg = full_msg.split_off(4); // skip "> &f"
+
+    // most likely there's a space
+    // the server trims the first line :(
+    full_msg = format!("{} {}", chat_last, full_msg);
+  }
+
+  handle_chat_message(&full_msg);
+}
+
 // TODO init these in load()
 lazy_static! {
   static ref CHAT_KEY: Option<Key> =
@@ -139,7 +165,7 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: Key, repeat: u8) {
   let mut chat = CHAT.lock();
   chat.handle_key(key, repeat != 0);
 
-  if key == Key__KEY_TAB {
+  if chat.open && key == Key__KEY_TAB {
     print("autocomplete me baby");
   }
 }
@@ -191,37 +217,37 @@ pub fn load() {
       panic!("UH OH");
     }
 
-    // thread::spawn(move || {
-    //   if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-    //     print("Metastruct/garrysmod-chatsounds");
-    //     chatsounds.load_github_api(
-    //       "Metastruct/garrysmod-chatsounds".to_string(),
-    //       "sound/chatsounds/autoadd".to_string(),
-    //     );
-    //   }
+    thread::spawn(move || {
+      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+        print("Metastruct/garrysmod-chatsounds");
+        chatsounds.load_github_api(
+          "Metastruct/garrysmod-chatsounds".to_string(),
+          "sound/chatsounds/autoadd".to_string(),
+        );
+      }
 
-    //   if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-    //     print("PAC3-Server/chatsounds");
-    //     chatsounds.load_github_api(
-    //       "PAC3-Server/chatsounds".to_string(),
-    //       "sounds/chatsounds".to_string(),
-    //     );
-    //   }
+      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+        print("PAC3-Server/chatsounds");
+        chatsounds.load_github_api(
+          "PAC3-Server/chatsounds".to_string(),
+          "sounds/chatsounds".to_string(),
+        );
+      }
 
-    //   for folder in &[
-    //     "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
-    //   ] {
-    //     if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-    //       print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
-    //       chatsounds.load_github_msgpack(
-    //         "PAC3-Server/chatsounds-valve-games".to_string(),
-    //         folder.to_string(),
-    //       );
-    //     }
-    //   }
+      for folder in &[
+        "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
+      ] {
+        if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+          print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
+          chatsounds.load_github_msgpack(
+            "PAC3-Server/chatsounds-valve-games".to_string(),
+            folder.to_string(),
+          );
+        }
+      }
 
-    //   print("done fetching sources");
-    // });
+      print("done fetching sources");
+    });
   }); // Once
 }
 
