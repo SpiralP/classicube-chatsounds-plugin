@@ -1,7 +1,7 @@
 use chatsounds::*;
 use classicube::{
   ChatEvents, Chat_AddOf, Event_RegisterChat, Event_RegisterInt, Event_UnregisterChat,
-  Event_UnregisterInt, IGameComponent, InputEvents, MsgType_MSG_TYPE_BOTTOMRIGHT_1,
+  Event_UnregisterInt, IGameComponent, InputEvents, MsgType, MsgType_MSG_TYPE_BOTTOMRIGHT_1,
   MsgType_MSG_TYPE_BOTTOMRIGHT_2, MsgType_MSG_TYPE_BOTTOMRIGHT_3, MsgType_MSG_TYPE_NORMAL,
   ScheduledTask, Server,
 };
@@ -10,10 +10,12 @@ use lazy_static::lazy_static;
 use parking_lot::{Mutex, Once};
 use rand::seq::SliceRandom;
 use std::{
+  collections::VecDeque,
   os::raw::{c_int, c_void},
   ptr,
   sync::mpsc::{channel, Receiver, Sender},
   thread,
+  time::{Duration, Instant},
 };
 
 static LOAD_ONCE: Once = Once::new();
@@ -31,35 +33,81 @@ lazy_static! {
 struct Printer {
   sender: Sender<String>,
   receiver: Receiver<String>,
+  last_messages: VecDeque<(String, Instant)>,
+  remove_delay: Duration,
 }
 impl Printer {
   fn new() -> Self {
     let (sender, receiver) = channel();
-    Self { sender, receiver }
+    Self {
+      sender,
+      receiver,
+      last_messages: VecDeque::with_capacity(4),
+      remove_delay: Duration::from_secs(10),
+    }
   }
 
   fn print<T: Into<String>>(&self, s: T) {
     self.sender.send(s.into()).unwrap();
   }
 
-  fn flush(&self) {
+  fn raw_print(s: String, msg_type: MsgType) {
+    let length = s.len() as u16;
+    let capacity = s.len() as u16;
+
+    let c_str = std::ffi::CString::new(s).unwrap();
+
+    let buffer = c_str.as_ptr() as *mut i8;
+
+    let cc_str = classicube::String {
+      buffer,
+      length,
+      capacity,
+    };
+
+    unsafe {
+      Chat_AddOf(&cc_str, msg_type);
+    }
+  }
+
+  fn flush(&mut self) {
+    let now = Instant::now();
+
     for s in self.receiver.try_iter() {
-      let length = s.len() as u16;
-      let capacity = s.len() as u16;
+      self.last_messages.push_front((s, now));
 
-      let c_str = std::ffi::CString::new(s).unwrap();
+      if let Some((s, _)) = self.last_messages.get(0) {
+        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+      }
 
-      let buffer = c_str.as_ptr() as *mut i8;
+      if let Some((s, _)) = self.last_messages.get(1) {
+        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
+      }
 
-      let cc_str = classicube::String {
-        buffer,
-        length,
-        capacity,
-      };
+      if let Some((s, _)) = self.last_messages.get(2) {
+        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
+      }
 
-      unsafe {
-        // TODO scrolling and removal, 1 is lowest
-        Chat_AddOf(&cc_str, MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+      if self.last_messages.len() == 4 {
+        self.last_messages.pop_back();
+      }
+    }
+
+    if let Some((_, time)) = self.last_messages.get(0) {
+      if (now - *time) > self.remove_delay {
+        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+      }
+    }
+
+    if let Some((_, time)) = self.last_messages.get(1) {
+      if (now - *time) > self.remove_delay {
+        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
+      }
+    }
+
+    if let Some((_, time)) = self.last_messages.get(2) {
+      if (now - *time) > self.remove_delay {
+        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
       }
     }
   }
