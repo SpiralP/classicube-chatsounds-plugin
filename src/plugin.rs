@@ -1,8 +1,10 @@
-use crate::printer::Printer;
+use crate::{option, option::get_key_from_input_name, printer::Printer};
 use chatsounds::Chatsounds;
 use classicube::{
-  ChatEvents, Event_RegisterChat, Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInt,
-  InputEvents, MsgType_MSG_TYPE_NORMAL, ScheduledTask, Server,
+  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_UnregisterChat, Event_UnregisterInput,
+  InputEvents, Key, Key__KEY_0, Key__KEY_9, Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE,
+  Key__KEY_KP_ENTER, Key__KEY_SLASH, Key__KEY_SPACE, Key__KEY_TAB, Key__KEY_Z,
+  MsgType_MSG_TYPE_NORMAL, ScheduledTask, Server,
 };
 use detour::static_detour;
 use lazy_static::lazy_static;
@@ -25,6 +27,62 @@ lazy_static! {
   static ref CHATSOUNDS: Mutex<Option<Chatsounds>> = Mutex::new(None);
   static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
   static ref EVENTS_REGISTERED: Mutex<bool> = Mutex::new(false);
+  static ref CHAT: Mutex<Chat> = Mutex::new(Chat::new());
+}
+
+pub struct Chat {
+  open: bool,
+  text: Vec<u8>,
+}
+impl Chat {
+  pub fn new() -> Self {
+    Self {
+      text: Vec::new(),
+      open: false,
+    }
+  }
+
+  pub fn get_text(&self) -> String {
+    String::from_utf8_lossy(&self.text)
+      .to_string()
+      .to_lowercase()
+  }
+
+  pub fn handle_key(&mut self, key: Key, repeat: bool) {
+    if !repeat {
+      if !self.open && (key == CHAT_KEY.unwrap_or(0) || key == Key__KEY_SLASH) {
+        print("OPEN");
+
+        self.open = true;
+        self.text.clear();
+        return;
+      }
+
+      if key == SEND_CHAT_KEY.unwrap_or(0) || key == Key__KEY_KP_ENTER || key == Key__KEY_ESCAPE {
+        print("CLOSE");
+
+        self.open = false;
+        self.text.clear();
+        return;
+      }
+    }
+
+    if self.open {
+      // TODO ' and other symbols!
+      // TODO shift + 2 should be @?
+
+      if (key >= Key__KEY_A && key <= Key__KEY_Z) || (key >= Key__KEY_0 && key <= Key__KEY_9) {
+        let chr = key as u8;
+        self.text.push(chr);
+      } else if key == Key__KEY_BACKSPACE {
+        self.text.pop();
+      } else if key == Key__KEY_SPACE {
+        self.text.push(b' ');
+      }
+
+      print(self.get_text());
+    }
+  }
 }
 
 fn print<T: Into<String>>(s: T) {
@@ -69,8 +127,21 @@ extern "C" fn on_chat_received(
   }
 }
 
-extern "C" fn on_key_press(_obj: *mut c_void, chr: c_int) {
-  // print(format!("{:?}", chr));
+// TODO init these in load()
+lazy_static! {
+  static ref CHAT_KEY: Option<Key> =
+    { option::get("key-Chat").and_then(|s| get_key_from_input_name(&s)) };
+  static ref SEND_CHAT_KEY: Option<Key> =
+    { option::get("key-SendChat").and_then(|s| get_key_from_input_name(&s)) };
+}
+
+extern "C" fn on_key_down(_obj: *mut c_void, key: Key, repeat: u8) {
+  let mut chat = CHAT.lock();
+  chat.handle_key(key, repeat != 0);
+
+  if key == Key__KEY_TAB {
+    print("autocomplete me baby");
+  }
 }
 
 fn tick_detour(task: *mut ScheduledTask) {
@@ -93,7 +164,7 @@ pub fn load() {
         Some(on_chat_received),
       );
 
-      Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
+      Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
     }
 
     *events_registered = true;
@@ -120,37 +191,37 @@ pub fn load() {
       panic!("UH OH");
     }
 
-    thread::spawn(move || {
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        print("Metastruct/garrysmod-chatsounds");
-        chatsounds.load_github_api(
-          "Metastruct/garrysmod-chatsounds".to_string(),
-          "sound/chatsounds/autoadd".to_string(),
-        );
-      }
+    // thread::spawn(move || {
+    //   if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    //     print("Metastruct/garrysmod-chatsounds");
+    //     chatsounds.load_github_api(
+    //       "Metastruct/garrysmod-chatsounds".to_string(),
+    //       "sound/chatsounds/autoadd".to_string(),
+    //     );
+    //   }
 
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        print("PAC3-Server/chatsounds");
-        chatsounds.load_github_api(
-          "PAC3-Server/chatsounds".to_string(),
-          "sounds/chatsounds".to_string(),
-        );
-      }
+    //   if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    //     print("PAC3-Server/chatsounds");
+    //     chatsounds.load_github_api(
+    //       "PAC3-Server/chatsounds".to_string(),
+    //       "sounds/chatsounds".to_string(),
+    //     );
+    //   }
 
-      for folder in &[
-        "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
-      ] {
-        if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-          print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
-          chatsounds.load_github_msgpack(
-            "PAC3-Server/chatsounds-valve-games".to_string(),
-            folder.to_string(),
-          );
-        }
-      }
+    //   for folder in &[
+    //     "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
+    //   ] {
+    //     if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    //       print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
+    //       chatsounds.load_github_msgpack(
+    //         "PAC3-Server/chatsounds-valve-games".to_string(),
+    //         folder.to_string(),
+    //       );
+    //     }
+    //   }
 
-      print("done fetching sources");
-    });
+    //   print("done fetching sources");
+    // });
   }); // Once
 }
 
@@ -165,7 +236,7 @@ pub fn unload() {
         Some(on_chat_received),
       );
 
-      Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
+      Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
     }
   }
 
