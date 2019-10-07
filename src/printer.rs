@@ -2,9 +2,9 @@ use classicube::{
   Chat_AddOf, MsgType, MsgType_MSG_TYPE_BOTTOMRIGHT_1, MsgType_MSG_TYPE_BOTTOMRIGHT_2,
   MsgType_MSG_TYPE_BOTTOMRIGHT_3,
 };
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use std::{
   collections::VecDeque,
-  sync::mpsc::{channel, Receiver, Sender},
   time::{Duration, Instant},
 };
 
@@ -16,7 +16,7 @@ pub struct Printer {
 }
 impl Printer {
   pub fn new() -> Self {
-    let (sender, receiver) = channel();
+    let (sender, receiver) = unbounded();
     Self {
       sender,
       receiver,

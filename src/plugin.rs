@@ -9,7 +9,9 @@ use lazy_static::lazy_static;
 use parking_lot::{Mutex, Once};
 use rand::seq::SliceRandom;
 use std::{
+  fs,
   os::raw::{c_int, c_void},
+  path::Path,
   ptr, thread,
 };
 
@@ -29,7 +31,7 @@ fn print<T: Into<String>>(s: T) {
   PRINTER.lock().print(s)
 }
 
-extern "C" fn chat_on_received(
+extern "C" fn on_chat_received(
   _obj: *mut c_void,
   full_msg: *const classicube::String,
   msg_type: c_int,
@@ -88,7 +90,7 @@ pub fn load() {
       Event_RegisterChat(
         &mut ChatEvents.ChatReceived,
         ptr::null_mut(),
-        Some(chat_on_received),
+        Some(on_chat_received),
       );
 
       Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
@@ -105,9 +107,17 @@ pub fn load() {
 
     print("Loading chatsounds...");
 
+    if fs::metadata("plugins")
+      .map(|meta| meta.is_dir())
+      .unwrap_or(false)
     {
-      let chatsounds = Chatsounds::new();
+      let path = Path::new("plugins/chatsounds");
+      fs::create_dir_all(path).unwrap();
+
+      let chatsounds = Chatsounds::new(path);
       *CHATSOUNDS.lock() = Some(chatsounds);
+    } else {
+      panic!("UH OH");
     }
 
     thread::spawn(move || {
@@ -117,23 +127,29 @@ pub fn load() {
           "Metastruct/garrysmod-chatsounds".to_string(),
           "sound/chatsounds/autoadd".to_string(),
         );
+      }
 
+      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
         print("PAC3-Server/chatsounds");
         chatsounds.load_github_api(
           "PAC3-Server/chatsounds".to_string(),
           "sounds/chatsounds".to_string(),
         );
+      }
 
-        for folder in &[
-          "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
-        ] {
+      for folder in &[
+        "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
+      ] {
+        if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
           print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
-          chatsounds.load_github_api(
+          chatsounds.load_github_msgpack(
             "PAC3-Server/chatsounds-valve-games".to_string(),
             folder.to_string(),
           );
         }
       }
+
+      print("done fetching sources");
     });
   }); // Once
 }
@@ -146,7 +162,7 @@ pub fn unload() {
       Event_UnregisterChat(
         &mut ChatEvents.ChatReceived,
         ptr::null_mut(),
-        Some(chat_on_received),
+        Some(on_chat_received),
       );
 
       Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
