@@ -16,22 +16,57 @@ use std::{
   thread,
 };
 
-lazy_static! {
-  static ref CHATSOUNDS: Mutex<Option<Chatsounds>> = Mutex::new(None);
-}
+static LOAD_ONCE: Once = Once::new();
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
 }
 
-static mut PRINT_RECEIVER: Option<Receiver<String>> = None;
-static mut PRINT_SENDER: Option<Sender<String>> = None;
+lazy_static! {
+  static ref CHATSOUNDS: Mutex<Option<Chatsounds>> = Mutex::new(None);
+  static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
+  static ref EVENTS_REGISTERED: Mutex<bool> = Mutex::new(false);
+}
+
+struct Printer {
+  sender: Sender<String>,
+  receiver: Receiver<String>,
+}
+impl Printer {
+  fn new() -> Self {
+    let (sender, receiver) = channel();
+    Self { sender, receiver }
+  }
+
+  fn print<T: Into<String>>(&self, s: T) {
+    self.sender.send(s.into()).unwrap();
+  }
+
+  fn flush(&self) {
+    for s in self.receiver.try_iter() {
+      let length = s.len() as u16;
+      let capacity = s.len() as u16;
+
+      let c_str = std::ffi::CString::new(s).unwrap();
+
+      let buffer = c_str.as_ptr() as *mut i8;
+
+      let cc_str = classicube::String {
+        buffer,
+        length,
+        capacity,
+      };
+
+      unsafe {
+        // TODO scrolling and removal, 1 is lowest
+        Chat_AddOf(&cc_str, MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+      }
+    }
+  }
+}
 
 fn print<T: Into<String>>(s: T) {
-  unsafe {
-    let sender = PRINT_SENDER.as_ref().unwrap();
-    sender.send(s.into()).unwrap();
-  }
+  PRINTER.lock().print(s)
 }
 
 extern "C" fn chat_on_received(
@@ -76,9 +111,9 @@ extern "C" fn on_key_press(_obj: *mut c_void, chr: c_int) {
   // print(format!("{:?}", chr));
 }
 
-static mut REGISTERED: bool = false;
-
 extern "C" fn init() {
+  let mut events_registered = EVENTS_REGISTERED.lock();
+
   unsafe {
     Event_RegisterChat(
       &mut ChatEvents.ChatReceived,
@@ -87,14 +122,16 @@ extern "C" fn init() {
     );
 
     Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
-
-    REGISTERED = true;
   }
+
+  *events_registered = true;
 }
 
 extern "C" fn free() {
-  unsafe {
-    if REGISTERED {
+  let mut events_registered = EVENTS_REGISTERED.lock();
+
+  if *events_registered {
+    unsafe {
       Event_UnregisterChat(
         &mut ChatEvents.ChatReceived,
         ptr::null_mut(),
@@ -102,10 +139,10 @@ extern "C" fn free() {
       );
 
       Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
-
-      REGISTERED = false;
     }
   }
+
+  *events_registered = false;
 
   *CHATSOUNDS.lock() = None;
 }
@@ -114,35 +151,14 @@ fn tick_detour(task: *mut ScheduledTask) {
   unsafe {
     // call original Server.Tick
     TICK_DETOUR.call(task);
-
-    for s in PRINT_RECEIVER.as_ref().unwrap().try_iter() {
-      let length = s.len() as u16;
-      let capacity = s.len() as u16;
-
-      let c_str = std::ffi::CString::new(s).unwrap();
-
-      let buffer = c_str.as_ptr() as *mut i8;
-
-      let cc_str = classicube::String {
-        buffer,
-        length,
-        capacity,
-      };
-
-      Chat_AddOf(&cc_str, MsgType_MSG_TYPE_BOTTOMRIGHT_1);
-    }
   }
+
+  PRINTER.lock().flush();
 }
 
-static START: Once = Once::new();
-
 extern "C" fn on_map_loaded() {
-  START.call_once(|| {
+  LOAD_ONCE.call_once(|| {
     unsafe {
-      let (sender, receiver) = channel();
-      PRINT_SENDER = Some(sender);
-      PRINT_RECEIVER = Some(receiver);
-
       if let Some(tick_original) = Server.Tick {
         TICK_DETOUR.initialize(tick_original, tick_detour).unwrap();
         TICK_DETOUR.enable().unwrap();
