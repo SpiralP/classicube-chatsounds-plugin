@@ -86,19 +86,25 @@ extern "C" fn on_chat_received(
 extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
   let key: Key_ = key.try_into().unwrap();
 
-  let mut chat = CHAT.lock();
-  chat.handle_key_down(key, repeat != 0);
+  CHAT.with(|chat| {
+    let mut chat = chat.borrow_mut();
 
-  if chat.is_open() && key == Key__KEY_TAB {
-    print("autocomplete me baby");
-  }
+    chat.handle_key_down(key, repeat != 0);
+
+    if chat.is_open() && key == Key__KEY_TAB {
+      print("autocomplete me baby");
+    }
+  });
 }
 
 extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
   let key: Key_ = key.try_into().unwrap();
 
-  let mut chat = CHAT.lock();
-  chat.handle_key_press(key);
+  CHAT.with(|chat| {
+    let mut chat = chat.borrow_mut();
+
+    chat.handle_key_press(key);
+  });
 }
 
 pub fn load() {

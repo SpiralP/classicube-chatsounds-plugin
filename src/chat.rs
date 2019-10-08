@@ -3,11 +3,10 @@ use classicube::{
   Key_, Key__KEY_0, Key__KEY_9, Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE, Key__KEY_KP_ENTER,
   Key__KEY_SLASH, Key__KEY_SPACE, Key__KEY_Z,
 };
-use lazy_static::lazy_static;
-use parking_lot::Mutex;
+use std::cell::RefCell;
 
-lazy_static! {
-  pub static ref CHAT: Mutex<Chat> = Mutex::new(Chat::new());
+thread_local! {
+  pub static CHAT: RefCell<Chat> = RefCell::new(Chat::new());
 }
 
 pub struct Chat {
