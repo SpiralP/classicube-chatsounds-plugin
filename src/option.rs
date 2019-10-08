@@ -8,11 +8,11 @@ thread_local! {
 
 pub fn load() {
   CHAT_KEY.with(|chat_key| {
-    chat_key.replace(get("key-Chat").and_then(|s| get_key_from_input_name(&s)));
+    chat_key.set(get("key-Chat").and_then(|s| get_key_from_input_name(&s)));
   });
 
   SEND_CHAT_KEY.with(|send_chat_key| {
-    send_chat_key.replace(get("key-SendChat").and_then(|s| get_key_from_input_name(&s)));
+    send_chat_key.set(get("key-SendChat").and_then(|s| get_key_from_input_name(&s)));
   });
 }
 
