@@ -1,11 +1,23 @@
-use crate::{chatsounds::CHATSOUNDS, printer::Printer};
+use crate::{
+  chatsounds::{CHATSOUNDS, VOLUME_NORMAL},
+  option,
+  printer::Printer,
+};
 use arrayvec::ArrayVec;
 use classicube::{ChatCommand, Commands_Register};
-use std::{convert::TryInto, ffi::CString, os::raw::c_int, ptr};
+use std::{cell::RefCell, convert::TryInto, ffi::CString, os::raw::c_int, ptr};
 
-pub static mut COMMAND: Option<OwnedChatCommand> = None;
+pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
-const VOLUME_NORMAL: f32 = 0.1;
+
+thread_local! {
+  pub static COMMAND: RefCell<OwnedChatCommand> = RefCell::new(OwnedChatCommand::new(
+    "Chatsounds",
+    c_command_callback,
+    false,
+    vec![VOLUME_COMMAND_HELP],
+  ));
+}
 
 pub struct OwnedChatCommand {
   pub name: CString,
@@ -49,48 +61,55 @@ impl OwnedChatCommand {
   }
 }
 
-unsafe extern "C" fn command_callback(args: *const classicube::String, args_count: c_int) {
+unsafe extern "C" fn c_command_callback(args: *const classicube::String, args_count: c_int) {
   let args = std::slice::from_raw_parts(args, args_count.try_into().unwrap());
   let args: Vec<String> = args.iter().map(|cc_string| cc_string.to_string()).collect();
+
+  command_callback(args);
+}
+
+fn command_callback(args: Vec<String>) {
   let args: Vec<&str> = args.iter().map(|s| s.as_ref()).collect();
 
-  match args.as_slice() {
-    ["volume"] => {
-      Printer::chat_add(VOLUME_COMMAND_HELP);
-    }
+  if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    let current_volume = chatsounds.volume() / VOLUME_NORMAL;
 
-    ["volume", volume] => {
-      let volume_maybe: Result<f32, _> = volume.parse();
-      match volume_maybe {
-        Ok(volume) => {
-          // TODO store in Options_xxx
-          Printer::chat_add(format!("&eSetting volume to {}", volume));
-          if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    match args.as_slice() {
+      ["volume"] => {
+        Printer::chat_add(format!(
+          "{} (Currently {})",
+          VOLUME_COMMAND_HELP, current_volume
+        ));
+      }
+
+      ["volume", volume] => {
+        let volume_maybe: Result<f32, _> = volume.parse();
+        match volume_maybe {
+          Ok(volume) => {
+            Printer::chat_add(format!("&eSetting volume to {}", volume));
+
             chatsounds.set_volume(VOLUME_NORMAL * volume);
+            option::set(VOLUME_SETTING_NAME, format!("{}", volume));
+          }
+          Err(e) => {
+            Printer::chat_add(format!("&c{}", e));
           }
         }
-        Err(e) => {
-          Printer::chat_add(format!("&c{}", e));
-        }
       }
-    }
 
-    _ => {
-      Printer::chat_add(VOLUME_COMMAND_HELP);
-      // ...rest
+      _ => {
+        Printer::chat_add(format!(
+          "{} (Currently {})",
+          VOLUME_COMMAND_HELP, current_volume
+        ));
+        // ...rest
+      }
     }
   }
 }
 
 pub fn load() {
-  unsafe {
-    COMMAND = Some(OwnedChatCommand::new(
-      "Chatsounds",
-      command_callback,
-      false,
-      vec![VOLUME_COMMAND_HELP],
-    ));
-
-    Commands_Register(&mut COMMAND.as_mut().unwrap().command);
-  }
+  COMMAND.with(|owned_command| unsafe {
+    Commands_Register(&mut owned_command.borrow_mut().command);
+  });
 }

@@ -1,12 +1,9 @@
-// TODO volume command, 0 disables
-
 use crate::{
   chat::CHAT,
   chatsounds::CHATSOUNDS,
   command,
   printer::{print, PRINTER},
 };
-use chatsounds::Chatsounds;
 use classicube::{
   ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
   Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_TAB, MsgType,
@@ -18,9 +15,7 @@ use parking_lot::{Mutex, Once};
 use rand::seq::SliceRandom;
 use std::{
   convert::TryInto,
-  fs,
   os::raw::{c_int, c_void},
-  path::Path,
   ptr, thread,
 };
 
@@ -152,18 +147,7 @@ pub fn load() {
 
     print("Loading chatsounds...");
 
-    if fs::metadata("plugins")
-      .map(|meta| meta.is_dir())
-      .unwrap_or(false)
-    {
-      let path = Path::new("plugins/chatsounds");
-      fs::create_dir_all(path).unwrap();
-
-      let chatsounds = Chatsounds::new(path);
-      *CHATSOUNDS.lock() = Some(chatsounds);
-    } else {
-      panic!("UH OH");
-    }
+    crate::chatsounds::load();
 
     thread::spawn(move || {
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {

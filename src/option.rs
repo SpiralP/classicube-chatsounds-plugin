@@ -1,4 +1,4 @@
-use classicube::{Key_, Options_Get, STRING_SIZE};
+use classicube::{Key_, Options_Get, Options_Set, STRING_SIZE};
 use lazy_static::lazy_static;
 use std::{ffi::CString, mem};
 
@@ -154,8 +154,8 @@ pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key_> {
     .map(|n| n as Key_)
 }
 
-pub fn get<S: Into<Vec<u8>>>(s: S) -> Option<String> {
-  let c_key = CString::new(s).unwrap();
+pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
+  let c_key = CString::new(key).unwrap();
   let c_default = CString::new("").unwrap();
 
   let mut buffer: [u8; (STRING_SIZE as usize) + 1] =
@@ -176,5 +176,15 @@ pub fn get<S: Into<Vec<u8>>>(s: S) -> Option<String> {
     None
   } else {
     Some(string_value)
+  }
+}
+
+pub fn set<S: Into<Vec<u8>>>(key: S, value: String) {
+  let c_key = CString::new(key).unwrap();
+
+  let cc_string_value = unsafe { classicube::String::from_string(value) };
+
+  unsafe {
+    Options_Set(c_key.as_ptr(), &cc_string_value);
   }
 }
