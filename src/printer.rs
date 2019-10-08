@@ -1,13 +1,19 @@
 use classicube::{
   Chat_AddOf, MsgType, MsgType_MSG_TYPE_BOTTOMRIGHT_1, MsgType_MSG_TYPE_BOTTOMRIGHT_2,
-  MsgType_MSG_TYPE_BOTTOMRIGHT_3,
+  MsgType_MSG_TYPE_BOTTOMRIGHT_3, MsgType_MSG_TYPE_NORMAL,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use std::{
   collections::VecDeque,
   convert::TryInto,
   time::{Duration, Instant},
 };
+
+lazy_static! {
+  pub static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
+}
 
 pub struct Printer {
   sender: Sender<String>,
@@ -30,7 +36,9 @@ impl Printer {
     self.sender.send(s.into()).unwrap();
   }
 
-  fn raw_print(s: String, msg_type: MsgType) {
+  pub fn chat_add_of<S: Into<Vec<u8>>>(s: S, msg_type: MsgType) {
+    let s = s.into();
+
     let length = s.len() as u16;
     let capacity = s.len() as u16;
 
@@ -49,6 +57,10 @@ impl Printer {
     }
   }
 
+  pub fn chat_add<S: Into<Vec<u8>>>(s: S) {
+    Printer::chat_add_of(s, MsgType_MSG_TYPE_NORMAL)
+  }
+
   pub fn flush(&mut self) {
     let now = Instant::now();
 
@@ -56,15 +68,15 @@ impl Printer {
       self.last_messages.push_front((s, now));
 
       if let Some((s, _)) = self.last_messages.get(0) {
-        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
       }
 
       if let Some((s, _)) = self.last_messages.get(1) {
-        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
+        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
       }
 
       if let Some((s, _)) = self.last_messages.get(2) {
-        Printer::raw_print(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
+        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
       }
 
       if self.last_messages.len() == 4 {
@@ -74,20 +86,24 @@ impl Printer {
 
     if let Some((_, time)) = self.last_messages.get(0) {
       if (now - *time) > self.remove_delay {
-        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
+        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
       }
     }
 
     if let Some((_, time)) = self.last_messages.get(1) {
       if (now - *time) > self.remove_delay {
-        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
+        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
       }
     }
 
     if let Some((_, time)) = self.last_messages.get(2) {
       if (now - *time) > self.remove_delay {
-        Printer::raw_print(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
+        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
       }
     }
   }
+}
+
+pub fn print<T: Into<String>>(s: T) {
+  PRINTER.lock().print(s)
 }

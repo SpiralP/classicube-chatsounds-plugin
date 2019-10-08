@@ -1,5 +1,14 @@
 use classicube::{Key_, Options_Get, STRING_SIZE};
+use lazy_static::lazy_static;
 use std::{ffi::CString, mem};
+
+// TODO init these in load()
+lazy_static! {
+  pub static ref CHAT_KEY: Option<Key_> =
+    { get("key-Chat").and_then(|s| get_key_from_input_name(&s)) };
+  pub static ref SEND_CHAT_KEY: Option<Key_> =
+    { get("key-SendChat").and_then(|s| get_key_from_input_name(&s)) };
+}
 
 const INPUT_NAMES: [&str; 133] = [
   "None",

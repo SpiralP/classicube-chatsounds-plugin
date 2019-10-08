@@ -1,11 +1,16 @@
-use crate::{option, option::get_key_from_input_name, printer::Printer};
+// TODO volume command, 0 disables
+
+use crate::{
+  chat::CHAT,
+  chatsounds::CHATSOUNDS,
+  command,
+  printer::{print, PRINTER},
+};
 use chatsounds::Chatsounds;
 use classicube::{
   ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
-  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_0, Key__KEY_9,
-  Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE, Key__KEY_KP_ENTER, Key__KEY_SLASH,
-  Key__KEY_SPACE, Key__KEY_TAB, Key__KEY_Z, MsgType, MsgType_MSG_TYPE_NORMAL, ScheduledTask,
-  Server,
+  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_TAB, MsgType,
+  MsgType_MSG_TYPE_NORMAL, ScheduledTask, Server,
 };
 use detour::static_detour;
 use lazy_static::lazy_static;
@@ -26,74 +31,7 @@ static_detour! {
 }
 
 lazy_static! {
-  static ref CHATSOUNDS: Mutex<Option<Chatsounds>> = Mutex::new(None);
-  static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
   static ref EVENTS_REGISTERED: Mutex<bool> = Mutex::new(false);
-  static ref CHAT: Mutex<Chat> = Mutex::new(Chat::new());
-}
-
-pub struct Chat {
-  open: bool,
-  text: Vec<u8>,
-}
-impl Chat {
-  pub fn new() -> Self {
-    Self {
-      text: Vec::new(),
-      open: false,
-    }
-  }
-
-  pub fn get_text(&self) -> String {
-    String::from_utf8_lossy(&self.text)
-      .to_string()
-      .to_lowercase()
-  }
-
-  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
-    if !repeat {
-      if !self.open && (key == CHAT_KEY.unwrap_or(0) || key == Key__KEY_SLASH) {
-        // print("OPEN");
-
-        self.open = true;
-        self.text.clear();
-        return;
-      }
-
-      if key == SEND_CHAT_KEY.unwrap_or(0) || key == Key__KEY_KP_ENTER || key == Key__KEY_ESCAPE {
-        // print("CLOSE");
-
-        self.open = false;
-        self.text.clear();
-        return;
-      }
-    }
-  }
-
-  pub fn handle_key_press(&mut self, key: Key_) {
-    if self.open {
-      // TODO ' and other symbols!
-      // TODO shift + 2 should be @?
-
-      if (key >= Key__KEY_A && key <= Key__KEY_Z) || (key >= Key__KEY_0 && key <= Key__KEY_9) {
-        let chr = key as u8;
-        self.text.push(chr);
-      } else if key == Key__KEY_BACKSPACE {
-        self.text.pop();
-      } else if key == Key__KEY_SPACE {
-        self.text.push(b' ');
-
-        // TODO delete/cursor pos :sob:
-        // } else if key == Key__KEY_DELETE {
-      }
-
-      // print(self.get_text());
-    }
-  }
-}
-
-fn print<T: Into<String>>(s: T) {
-  PRINTER.lock().print(s)
 }
 
 fn handle_chat_message<S: Into<String>>(full_msg: S) {
@@ -105,6 +43,7 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
     thread::spawn(move || {
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
         let msg = msg.trim();
+
         if msg.to_lowercase() == "sh" {
           chatsounds.stop_all();
           return;
@@ -114,7 +53,7 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
         let mut rng = rand::thread_rng();
 
         if let Some(sound) = sounds.choose_mut(&mut rng) {
-          sound.play(&chatsounds.device, &mut chatsounds.sinks);
+          chatsounds.play(sound);
         }
       }
     });
@@ -159,21 +98,13 @@ extern "C" fn on_chat_received(
   handle_chat_message(&full_msg);
 }
 
-// TODO init these in load()
-lazy_static! {
-  static ref CHAT_KEY: Option<Key_> =
-    { option::get("key-Chat").and_then(|s| get_key_from_input_name(&s)) };
-  static ref SEND_CHAT_KEY: Option<Key_> =
-    { option::get("key-SendChat").and_then(|s| get_key_from_input_name(&s)) };
-}
-
 extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
   let key: Key_ = key.try_into().unwrap();
 
   let mut chat = CHAT.lock();
   chat.handle_key_down(key, repeat != 0);
 
-  if chat.open && key == Key__KEY_TAB {
+  if chat.is_open() && key == Key__KEY_TAB {
     print("autocomplete me baby");
   }
 }
@@ -208,6 +139,7 @@ pub fn load() {
       Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
       Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
     }
+    command::load();
 
     *events_registered = true;
 

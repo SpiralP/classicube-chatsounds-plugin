@@ -1,3 +1,6 @@
+mod chat;
+mod chatsounds;
+mod command;
 mod option;
 mod plugin;
 mod printer;
