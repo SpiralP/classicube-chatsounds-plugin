@@ -9,13 +9,14 @@ use std::{cell::RefCell, convert::TryInto, ffi::CString, os::raw::c_int, ptr};
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
+const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 thread_local! {
   pub static COMMAND: RefCell<OwnedChatCommand> = RefCell::new(OwnedChatCommand::new(
     "Chatsounds",
     c_command_callback,
     false,
-    vec![VOLUME_COMMAND_HELP],
+    vec![VOLUME_COMMAND_HELP,SH_COMMAND_HELP],
   ));
 }
 
@@ -97,11 +98,16 @@ fn command_callback(args: Vec<String>) {
         }
       }
 
+      ["sh"] => {
+        chatsounds.stop_all();
+      }
+
       _ => {
         Printer::chat_add(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
         ));
+        Printer::chat_add(SH_COMMAND_HELP);
         // ...rest
       }
     }
