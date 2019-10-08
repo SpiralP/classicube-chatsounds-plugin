@@ -34,6 +34,8 @@ pub fn load() {
 pub fn unload() {
   events::unload();
 
+  option::unload();
+
   unsafe {
     TICK_DETOUR.disable().unwrap();
   }

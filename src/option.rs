@@ -16,6 +16,16 @@ pub fn load() {
   });
 }
 
+pub fn unload() {
+  CHAT_KEY.with(|chat_key| {
+    chat_key.set(None);
+  });
+
+  SEND_CHAT_KEY.with(|send_chat_key| {
+    send_chat_key.set(None);
+  });
+}
+
 const INPUT_NAMES: [&str; 133] = [
   "None",
   "F1",

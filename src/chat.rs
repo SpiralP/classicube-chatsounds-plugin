@@ -1,4 +1,7 @@
-use crate::option::{CHAT_KEY, SEND_CHAT_KEY};
+use crate::{
+  option::{CHAT_KEY, SEND_CHAT_KEY},
+  printer::print,
+};
 use classicube::{
   Key_, Key__KEY_0, Key__KEY_9, Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE, Key__KEY_KP_ENTER,
   Key__KEY_SLASH, Key__KEY_SPACE, Key__KEY_Z,
@@ -34,8 +37,6 @@ impl Chat {
       let send_chat_key = SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get());
 
       if !self.open && (chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
-        // print("OPEN");
-
         self.open = true;
         self.text.clear();
         return;
@@ -45,8 +46,6 @@ impl Chat {
         || key == Key__KEY_KP_ENTER
         || key == Key__KEY_ESCAPE
       {
-        // print("CLOSE");
-
         self.open = false;
         self.text.clear();
         return;
@@ -71,7 +70,7 @@ impl Chat {
         // } else if key == Key__KEY_DELETE {
       }
 
-      // print(self.get_text());
+      print(self.get_text());
     }
   }
 }

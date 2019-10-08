@@ -8,30 +8,32 @@ mod printer;
 mod thread;
 
 use classicube::IGameComponent;
-use std::{cell::Cell, os::raw::c_int, ptr};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+use std::{os::raw::c_int, ptr};
 
-thread_local! {
-  static LOADED: Cell<bool> = Cell::new(false);
+lazy_static! {
+  static ref LOADED: Mutex<bool> = Mutex::new(false);
 }
 
 extern "C" fn on_new_map_loaded() {
-  let loaded = LOADED.with(|a| a.get());
+  let mut loaded = LOADED.lock();
 
-  if !loaded {
+  if !*loaded {
     plugin::load();
   }
 
-  LOADED.with(|a| a.set(true));
+  *loaded = true;
 }
 
 extern "C" fn free() {
-  let loaded = LOADED.with(|a| a.get());
+  let mut loaded = LOADED.lock();
 
-  if loaded {
+  if *loaded {
     plugin::unload();
   }
 
-  LOADED.with(|a| a.set(false));
+  *loaded = false;
 }
 
 #[no_mangle]

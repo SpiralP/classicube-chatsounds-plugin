@@ -91,7 +91,7 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
       let text = chat.get_text();
 
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        print("autocomplete");
+        print(format!("autocomplete {}", text));
         // chatsounds.autocomplete(text);
       }
     }
