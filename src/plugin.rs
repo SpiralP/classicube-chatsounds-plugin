@@ -1,8 +1,9 @@
 use crate::{
   chat::CHAT,
   chatsounds::CHATSOUNDS,
-  command,
+  command, option,
   printer::{print, PRINTER},
+  thread,
 };
 use classicube::{
   ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
@@ -16,7 +17,7 @@ use rand::seq::SliceRandom;
 use std::{
   convert::TryInto,
   os::raw::{c_int, c_void},
-  ptr, thread,
+  ptr,
 };
 
 static LOAD_ONCE: Once = Once::new();
@@ -35,7 +36,7 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
   if let Some(pos) = full_msg.rfind("&f") {
     let msg = full_msg.split_off(pos + 2);
 
-    thread::spawn(move || {
+    thread::spawn("chatsounds handle message", move || {
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
         let msg = msg.trim();
 
@@ -123,6 +124,7 @@ fn tick_detour(task: *mut ScheduledTask) {
 
 pub fn load() {
   LOAD_ONCE.call_once(|| {
+    // TODO remove this weird thing
     let mut events_registered = EVENTS_REGISTERED.lock();
 
     unsafe {
@@ -137,6 +139,8 @@ pub fn load() {
     }
     command::load();
 
+    option::load();
+
     *events_registered = true;
 
     unsafe {
@@ -146,41 +150,7 @@ pub fn load() {
       }
     }
 
-    print("Loading chatsounds...");
-
     crate::chatsounds::load();
-
-    thread::spawn(move || {
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        print("Metastruct/garrysmod-chatsounds");
-        chatsounds.load_github_api(
-          "Metastruct/garrysmod-chatsounds".to_string(),
-          "sound/chatsounds/autoadd".to_string(),
-        );
-      }
-
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        print("PAC3-Server/chatsounds");
-        chatsounds.load_github_api(
-          "PAC3-Server/chatsounds".to_string(),
-          "sounds/chatsounds".to_string(),
-        );
-      }
-
-      for folder in &[
-        "csgo", "css", "ep1", "ep2", "hl2", "l4d", "l4d2", "portal", "tf2",
-      ] {
-        if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-          print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
-          chatsounds.load_github_msgpack(
-            "PAC3-Server/chatsounds-valve-games".to_string(),
-            folder.to_string(),
-          );
-        }
-      }
-
-      print("done fetching sources");
-    });
   }); // Once
 }
 
@@ -202,5 +172,9 @@ pub fn unload() {
 
   *events_registered = false;
 
-  *CHATSOUNDS.lock() = None;
+  unsafe {
+    TICK_DETOUR.disable().unwrap();
+  }
+
+  crate::chatsounds::unload();
 }

@@ -31,7 +31,10 @@ impl Chat {
 
   pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
-      if !self.open && (key == CHAT_KEY.unwrap_or(0) || key == Key__KEY_SLASH) {
+      let chat_key = CHAT_KEY.with(|chat_key| chat_key.get());
+      let send_chat_key = SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get());
+
+      if !self.open && (chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
         // print("OPEN");
 
         self.open = true;
@@ -39,7 +42,10 @@ impl Chat {
         return;
       }
 
-      if key == SEND_CHAT_KEY.unwrap_or(0) || key == Key__KEY_KP_ENTER || key == Key__KEY_ESCAPE {
+      if send_chat_key.map(|k| key == k).unwrap_or(false)
+        || key == Key__KEY_KP_ENTER
+        || key == Key__KEY_ESCAPE
+      {
         // print("CLOSE");
 
         self.open = false;

@@ -4,6 +4,7 @@ mod command;
 mod option;
 mod plugin;
 mod printer;
+mod thread;
 
 use classicube::IGameComponent;
 use std::{os::raw::c_int, ptr};

@@ -1,13 +1,19 @@
 use classicube::{Key_, Options_Get, Options_Set, STRING_SIZE};
-use lazy_static::lazy_static;
-use std::{ffi::CString, mem};
+use std::{cell::Cell, ffi::CString, mem};
 
-// TODO init these in load()
-lazy_static! {
-  pub static ref CHAT_KEY: Option<Key_> =
-    { get("key-Chat").and_then(|s| get_key_from_input_name(&s)) };
-  pub static ref SEND_CHAT_KEY: Option<Key_> =
-    { get("key-SendChat").and_then(|s| get_key_from_input_name(&s)) };
+thread_local! {
+  pub static CHAT_KEY: Cell<Option<Key_>> = Cell::new(None);
+  pub static SEND_CHAT_KEY: Cell<Option<Key_>> = Cell::new(None);
+}
+
+pub fn load() {
+  CHAT_KEY.with(|chat_key| {
+    chat_key.replace(get("key-Chat").and_then(|s| get_key_from_input_name(&s)));
+  });
+
+  SEND_CHAT_KEY.with(|send_chat_key| {
+    send_chat_key.replace(get("key-SendChat").and_then(|s| get_key_from_input_name(&s)));
+  });
 }
 
 const INPUT_NAMES: [&str; 133] = [
