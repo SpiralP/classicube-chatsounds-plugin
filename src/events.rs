@@ -6,15 +6,11 @@ use classicube::{
 };
 use rand::seq::SliceRandom;
 use std::{
-  cell::{Cell, RefCell},
+  cell::RefCell,
   convert::TryInto,
   os::raw::{c_int, c_void},
   ptr,
 };
-
-thread_local! {
-  static EVENTS_REGISTERED: Cell<bool> = Cell::new(false);
-}
 
 fn handle_chat_message<S: Into<String>>(full_msg: S) {
   let mut full_msg = full_msg.into();
@@ -92,7 +88,12 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
     chat.handle_key_down(key, repeat != 0);
 
     if chat.is_open() && key == Key__KEY_TAB {
-      print("autocomplete me baby");
+      let text = chat.get_text();
+
+      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+        print("autocomplete");
+        // chatsounds.autocomplete(text);
+      }
     }
   });
 }
@@ -108,8 +109,6 @@ extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
 }
 
 pub fn load() {
-  // TODO remove this weird thing
-
   unsafe {
     Event_RegisterChat(
       &mut ChatEvents.ChatReceived,
@@ -120,25 +119,17 @@ pub fn load() {
     Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
     Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
-
-  EVENTS_REGISTERED.with(|a| a.set(true));
 }
 
 pub fn unload() {
-  let events_registered = EVENTS_REGISTERED.with(|a| a.get());
+  unsafe {
+    Event_UnregisterChat(
+      &mut ChatEvents.ChatReceived,
+      ptr::null_mut(),
+      Some(on_chat_received),
+    );
 
-  if events_registered {
-    unsafe {
-      Event_UnregisterChat(
-        &mut ChatEvents.ChatReceived,
-        ptr::null_mut(),
-        Some(on_chat_received),
-      );
-
-      Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
-      Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
-    }
+    Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
-
-  EVENTS_REGISTERED.with(|a| a.set(false));
 }

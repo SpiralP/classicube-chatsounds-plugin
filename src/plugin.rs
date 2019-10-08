@@ -1,9 +1,11 @@
 use crate::{command, events, option, printer::PRINTER};
 use classicube::{ScheduledTask, Server};
 use detour::static_detour;
-use parking_lot::Once;
+use std::cell::Cell;
 
-static LOAD_ONCE: Once = Once::new();
+thread_local! {
+  static LOADED: Cell<bool> = Cell::new(false);
+}
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
@@ -19,7 +21,9 @@ fn tick_detour(task: *mut ScheduledTask) {
 }
 
 pub fn load() {
-  LOAD_ONCE.call_once(|| {
+  let loaded = LOADED.with(|a| a.get());
+
+  if !loaded {
     events::load();
     command::load();
 
@@ -33,15 +37,23 @@ pub fn load() {
     }
 
     crate::chatsounds::load();
-  }); // Once
+
+    LOADED.with(|a| a.set(true));
+  }
 }
 
 pub fn unload() {
-  events::unload();
+  let loaded = LOADED.with(|a| a.get());
 
-  unsafe {
-    TICK_DETOUR.disable().unwrap();
+  if loaded {
+    events::unload();
+
+    unsafe {
+      TICK_DETOUR.disable().unwrap();
+    }
+
+    crate::chatsounds::unload();
   }
 
-  crate::chatsounds::unload();
+  LOADED.with(|a| a.set(false));
 }
