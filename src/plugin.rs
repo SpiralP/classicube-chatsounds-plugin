@@ -87,6 +87,7 @@ extern "C" fn on_chat_received(
 
     // most likely there's a space
     // the server trims the first line :(
+    // TODO try both messages? with and without the space?
     full_msg = format!("{} {}", chat_last, full_msg);
   }
 

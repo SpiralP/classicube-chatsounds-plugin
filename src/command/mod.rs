@@ -1,65 +1,25 @@
+mod owned_chat_command;
+
+use self::owned_chat_command::OwnedChatCommand;
 use crate::{
   chatsounds::{CHATSOUNDS, VOLUME_NORMAL},
   option,
   printer::Printer,
 };
-use arrayvec::ArrayVec;
-use classicube::{ChatCommand, Commands_Register};
-use std::{cell::RefCell, convert::TryInto, ffi::CString, os::raw::c_int, ptr};
+use classicube::Commands_Register;
+use std::{cell::RefCell, convert::TryInto, os::raw::c_int};
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 thread_local! {
-  pub static COMMAND: RefCell<OwnedChatCommand> = RefCell::new(OwnedChatCommand::new(
+  static COMMAND: RefCell<OwnedChatCommand> = RefCell::new(OwnedChatCommand::new(
     "Chatsounds",
     c_command_callback,
     false,
     vec![VOLUME_COMMAND_HELP,SH_COMMAND_HELP],
   ));
-}
-
-pub struct OwnedChatCommand {
-  pub name: CString,
-  pub help: Vec<CString>,
-  pub command: ChatCommand,
-}
-
-impl OwnedChatCommand {
-  pub fn new(
-    name: &'static str,
-    execute: unsafe extern "C" fn(args: *const classicube::String, argsCount: c_int),
-    singleplayer_only: bool,
-    mut help: Vec<&'static str>,
-  ) -> Self {
-    let name = CString::new(name).unwrap();
-
-    let help: Vec<CString> = help.drain(..).map(|s| CString::new(s).unwrap()).collect();
-
-    let command = ChatCommand {
-      Name: name.as_ptr(),
-      Execute: Some(execute),
-      SingleplayerOnly: if singleplayer_only { 1 } else { 0 },
-      Help: {
-        let mut array: ArrayVec<[*const ::std::os::raw::c_char; 5usize]> =
-          help.iter().map(|cstr| cstr.as_ptr()).collect();
-
-        while !array.is_full() {
-          array.push(ptr::null());
-        }
-
-        array.into_inner().unwrap()
-      },
-      next: ptr::null_mut(),
-    };
-
-    Self {
-      name,
-      help,
-      command,
-    }
-  }
 }
 
 unsafe extern "C" fn c_command_callback(args: *const classicube::String, args_count: c_int) {
