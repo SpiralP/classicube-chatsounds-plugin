@@ -8,14 +8,30 @@ mod printer;
 mod thread;
 
 use classicube::IGameComponent;
-use std::{os::raw::c_int, ptr};
+use std::{cell::Cell, os::raw::c_int, ptr};
 
-extern "C" fn free() {
-  plugin::unload();
+thread_local! {
+  static LOADED: Cell<bool> = Cell::new(false);
 }
 
 extern "C" fn on_new_map_loaded() {
-  plugin::load();
+  let loaded = LOADED.with(|a| a.get());
+
+  if !loaded {
+    plugin::load();
+  }
+
+  LOADED.with(|a| a.set(true));
+}
+
+extern "C" fn free() {
+  let loaded = LOADED.with(|a| a.get());
+
+  if loaded {
+    plugin::unload();
+  }
+
+  LOADED.with(|a| a.set(false));
 }
 
 #[no_mangle]
