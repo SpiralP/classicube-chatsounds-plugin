@@ -36,17 +36,14 @@ pub fn load() {
     if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
       print("Metastruct/garrysmod-chatsounds");
       chatsounds.load_github_api(
-        "Metastruct/garrysmod-chatsounds".to_string(),
-        "sound/chatsounds/autoadd".to_string(),
+        "Metastruct/garrysmod-chatsounds",
+        "sound/chatsounds/autoadd",
       );
     }
 
     if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
       print("PAC3-Server/chatsounds");
-      chatsounds.load_github_api(
-        "PAC3-Server/chatsounds".to_string(),
-        "sounds/chatsounds".to_string(),
-      );
+      chatsounds.load_github_api("PAC3-Server/chatsounds", "sounds/chatsounds");
     }
 
     for folder in &[
@@ -54,10 +51,7 @@ pub fn load() {
     ] {
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
         print(format!("PAC3-Server/chatsounds-valve-games {}", folder));
-        chatsounds.load_github_msgpack(
-          "PAC3-Server/chatsounds-valve-games".to_string(),
-          folder.to_string(),
-        );
+        chatsounds.load_github_msgpack("PAC3-Server/chatsounds-valve-games", folder);
       }
     }
 

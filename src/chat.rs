@@ -1,12 +1,14 @@
 use crate::{
+  events::{tablist_set, UNSET_NAME},
   option::{CHAT_KEY, SEND_CHAT_KEY},
   printer::print,
 };
 use classicube::{
-  Key_, Key__KEY_0, Key__KEY_9, Key__KEY_A, Key__KEY_BACKSPACE, Key__KEY_ESCAPE, Key__KEY_KP_ENTER,
-  Key__KEY_SLASH, Key__KEY_SPACE, Key__KEY_Z,
+  Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
+  Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
+  Key__KEY_UP,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, os::raw::c_int};
 
 thread_local! {
   pub static CHAT: RefCell<Chat> = RefCell::new(Chat::new());
@@ -15,14 +17,24 @@ thread_local! {
 pub struct Chat {
   open: bool,
   text: Vec<u8>,
+  cursor_pos: usize,
+  dedupe_open_key: bool,
+
+  history: Vec<Vec<u8>>,
+  history_pos: usize,
 }
 impl Chat {
   pub fn new() -> Self {
     Self {
       text: Vec::new(),
       open: false,
+      cursor_pos: 0,
+      dedupe_open_key: false,
+      history: Vec::new(),
+      history_pos: 0,
     }
   }
+
   pub fn is_open(&self) -> bool {
     self.open
   }
@@ -39,38 +51,88 @@ impl Chat {
       if !self.open && (chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
         self.open = true;
         self.text.clear();
+        self.cursor_pos = 0;
+
+        // special case for non-abc key binds
+        if key != Key__KEY_ENTER {
+          self.dedupe_open_key = true;
+        }
         return;
       }
 
-      if send_chat_key.map(|k| key == k).unwrap_or(false)
-        || key == Key__KEY_KP_ENTER
-        || key == Key__KEY_ESCAPE
-      {
+      let chat_send_success =
+        send_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_KP_ENTER;
+
+      if chat_send_success || key == Key__KEY_ESCAPE {
+        UNSET_NAME.with(|unset_name| {
+          if let Some((name, text, group, rank)) = unset_name.borrow_mut().take() {
+            unsafe {
+              tablist_set(255, name, text, group, rank);
+            }
+          }
+        });
+
+        if chat_send_success {
+          self.history.push(self.text.to_vec());
+        }
+
         self.open = false;
         self.text.clear();
+        self.cursor_pos = 0;
         return;
       }
     }
-  }
 
-  pub fn handle_key_press(&mut self, key: Key_) {
     if self.open {
-      // TODO ' and other symbols!
-      // TODO shift + 2 should be @?
-
-      if (key >= Key__KEY_A && key <= Key__KEY_Z) || (key >= Key__KEY_0 && key <= Key__KEY_9) {
-        let chr = key as u8;
-        self.text.push(chr);
+      if key == Key__KEY_LEFT {
+        if self.cursor_pos > 0 {
+          self.cursor_pos -= 1;
+        }
+      } else if key == Key__KEY_RIGHT {
+        if self.text.len() > self.cursor_pos {
+          self.cursor_pos += 1;
+        }
       } else if key == Key__KEY_BACKSPACE {
-        self.text.pop();
-      } else if key == Key__KEY_SPACE {
-        self.text.push(b' ');
+        if self.cursor_pos > 0 && self.text.get(self.cursor_pos - 1).is_some() {
+          self.text.remove(self.cursor_pos - 1);
+          self.cursor_pos -= 1;
+        }
+      } else if key == Key__KEY_DELETE {
+        if self.cursor_pos < self.text.len() && self.text.get(self.cursor_pos).is_some() {
+          self.text.remove(self.cursor_pos);
+        }
+      } else if key == Key__KEY_HOME {
+        self.cursor_pos = 0;
+      } else if key == Key__KEY_END {
+        self.cursor_pos = self.text.len();
 
-        // TODO delete/cursor pos :sob:
-        // } else if key == Key__KEY_DELETE {
+        // TODO
+        // } else if key == Key__KEY_UP {
+        //   if self.history_pos < self.history.len() {
+        //   self.history_pos += 1;
+        //   }
+
+        //   let text = self.history[self.history.len() - self.history_pos];
+        // } else if key == Key__KEY_DOWN {
+        //   if self.history_pos > 0 {
+        //     self.history_pos -= 1;
+        //   }
       }
 
-      print(self.get_text());
+      // print(self.get_text());
+    }
+  }
+
+  pub fn handle_key_press(&mut self, key: c_int) {
+    if self.dedupe_open_key {
+      self.dedupe_open_key = false;
+      return;
+    }
+
+    if self.open {
+      let chr = key as u8;
+      self.text.insert(self.cursor_pos, chr);
+      self.cursor_pos += 1;
     }
   }
 }

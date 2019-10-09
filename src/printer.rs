@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 use std::{
   collections::VecDeque,
   convert::TryInto,
+  ffi::CString,
   time::{Duration, Instant},
 };
 
@@ -42,7 +43,7 @@ impl Printer {
     let length = s.len() as u16;
     let capacity = s.len() as u16;
 
-    let c_str = std::ffi::CString::new(s).unwrap();
+    let c_str = CString::new(s).unwrap();
 
     let buffer = c_str.as_ptr() as *mut i8;
 

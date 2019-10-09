@@ -1,12 +1,9 @@
-mod owned_chat_command;
-
-use self::owned_chat_command::OwnedChatCommand;
 use crate::{
   chatsounds::{CHATSOUNDS, VOLUME_NORMAL},
   option,
   printer::Printer,
 };
-use classicube::Commands_Register;
+use classicube::{Commands_Register, OwnedChatCommand};
 use std::{cell::RefCell, convert::TryInto, os::raw::c_int};
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
