@@ -1,8 +1,9 @@
 use crate::{chat::CHAT, chatsounds::CHATSOUNDS, printer::print, thread};
 use classicube::{
-  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
-  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_TAB, MsgType,
-  MsgType_MSG_TYPE_NORMAL, StringsBuffer_UNSAFE_Get, TabList, TabList_Set,
+  ChatEvents, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt,
+  Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_,
+  Key__KEY_BACKSPACE, Key__KEY_TAB, MsgType, MsgType_MSG_TYPE_NORMAL, StringsBuffer_UNSAFE_Get,
+  TabList, TabList_Set,
 };
 use rand::seq::SliceRandom;
 use std::{
@@ -40,10 +41,8 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
 
 thread_local! {
   static CHAT_LAST: RefCell<Option<String>> = RefCell::new(None);
-}
-
-thread_local! {
   pub static UNSET_NAME: RefCell<Option<(String, String, String, u8)>> = RefCell::new(None);
+  pub static TYPE: RefCell<Option<String>> = RefCell::new(None);
 }
 
 extern "C" fn on_chat_received(
@@ -138,29 +137,13 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
           let mut ag = None;
           for result in results.iter().take(3).rev() {
             print(result);
-            ag = Some(result);
+            ag = Some(result.to_string());
           }
 
           if let Some(text) = ag {
-            unsafe {
-              let id = 255; // local self id
-              let last_name = tablist_get_name(id);
-              let last_text = tablist_get_text(id);
-              let last_group = tablist_get_group(id);
-              let last_rank = tablist_get_rank(id);
-
-              tablist_set(
-                id,
-                text.to_string(),
-                last_text.to_string(),
-                last_group.to_string(),
-                last_rank,
-              );
-
-              UNSET_NAME.with(|unset_name| {
-                *unset_name.borrow_mut() = Some((last_name, last_text, last_group, last_rank));
-              });
-            }
+            TYPE.with(|t| {
+              *t.borrow_mut() = Some(text);
+            });
           }
         }
       }
