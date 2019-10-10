@@ -1,4 +1,4 @@
-use classicube::{Key_, Options_Get, Options_Set, STRING_SIZE};
+use classicube_sys::{Key_, Options_Get, Options_Set, STRING_SIZE};
 use std::{cell::Cell, ffi::CString, mem};
 
 thread_local! {
@@ -176,7 +176,7 @@ pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
 
   let mut buffer: [u8; (STRING_SIZE as usize) + 1] =
     unsafe { mem::MaybeUninit::zeroed().assume_init() };
-  let mut cc_string_value = classicube::String {
+  let mut cc_string_value = classicube_sys::String {
     buffer: buffer.as_mut_ptr() as *mut i8,
     capacity: STRING_SIZE as u16,
     length: 0,
@@ -198,7 +198,7 @@ pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
 pub fn set<S: Into<Vec<u8>>>(key: S, value: String) {
   let c_key = CString::new(key).unwrap();
 
-  let cc_string_value = unsafe { classicube::String::from_string(value) };
+  let cc_string_value = unsafe { classicube_sys::String::from_string(value) };
 
   unsafe {
     Options_Set(c_key.as_ptr(), &cc_string_value);

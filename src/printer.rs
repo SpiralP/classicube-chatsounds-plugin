@@ -1,4 +1,4 @@
-use classicube::{
+use classicube_sys::{
   Chat_AddOf, MsgType, MsgType_MSG_TYPE_BOTTOMRIGHT_1, MsgType_MSG_TYPE_BOTTOMRIGHT_2,
   MsgType_MSG_TYPE_BOTTOMRIGHT_3, MsgType_MSG_TYPE_NORMAL,
 };
@@ -47,7 +47,7 @@ impl Printer {
 
     let buffer = c_str.as_ptr() as *mut i8;
 
-    let cc_str = classicube::String {
+    let cc_str = classicube_sys::String {
       buffer,
       length,
       capacity,

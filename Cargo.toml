@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 arrayvec = "0.5.0"
 chatsounds = { path = "../rust-chatsounds" }
-classicube = { path = "../rust-classicube" }
+classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 crossbeam-channel = "0.3.9"
 detour = "0.7.1"
 lazy_static = "1.4.0"

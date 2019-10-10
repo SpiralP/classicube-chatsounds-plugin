@@ -7,7 +7,7 @@ mod plugin;
 mod printer;
 mod thread;
 
-use classicube::IGameComponent;
+use classicube_sys::IGameComponent;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::{os::raw::c_int, ptr};

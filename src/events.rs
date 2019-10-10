@@ -1,5 +1,5 @@
 use crate::{chat::CHAT, chatsounds::CHATSOUNDS, printer::print, thread};
-use classicube::{
+use classicube_sys::{
   ChatEvents, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt,
   Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_,
   Key__KEY_BACKSPACE, Key__KEY_TAB, MsgType, MsgType_MSG_TYPE_NORMAL, StringsBuffer_UNSAFE_Get,
@@ -28,11 +28,12 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
           return;
         }
 
-        let mut sounds = chatsounds.get(msg);
-        let mut rng = rand::thread_rng();
+        if let Some(sounds) = chatsounds.get(msg) {
+          let mut rng = rand::thread_rng();
 
-        if let Some(sound) = sounds.choose_mut(&mut rng) {
-          chatsounds.play(sound);
+          if let Some(sound) = sounds.choose(&mut rng).cloned() {
+            chatsounds.play(&sound);
+          }
         }
       }
     });
@@ -47,7 +48,7 @@ thread_local! {
 
 extern "C" fn on_chat_received(
   _obj: *mut c_void,
-  full_msg: *const classicube::String,
+  full_msg: *const classicube_sys::String,
   msg_type: c_int,
 ) {
   let msg_type: MsgType = msg_type.try_into().unwrap();
@@ -111,9 +112,9 @@ pub unsafe fn tablist_get_rank(id: u8) -> u8 {
 }
 
 pub unsafe fn tablist_set(id: u8, name: String, text: String, group: String, rank: u8) {
-  let name = classicube::String::from_string(name);
-  let text = classicube::String::from_string(text);
-  let group = classicube::String::from_string(group);
+  let name = classicube_sys::String::from_string(name);
+  let text = classicube_sys::String::from_string(text);
+  let group = classicube_sys::String::from_string(group);
 
   TabList_Set(id, &name, &text, &group, rank);
 }
@@ -135,7 +136,7 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
           let results = chatsounds.search(text);
 
           let mut ag = None;
-          for result in results.iter().take(3).rev() {
+          for &result in results.iter().take(3).rev() {
             print(result);
             ag = Some(result.to_string());
           }

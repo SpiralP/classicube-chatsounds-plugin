@@ -3,7 +3,7 @@ use crate::{
   option::{CHAT_KEY, SEND_CHAT_KEY},
   printer::print,
 };
-use classicube::{
+use classicube_sys::{
   Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
   Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
   Key__KEY_UP,

@@ -3,7 +3,7 @@ use crate::{
   option,
   printer::Printer,
 };
-use classicube::{Commands_Register, OwnedChatCommand};
+use classicube_sys::{Commands_Register, OwnedChatCommand};
 use std::{cell::RefCell, convert::TryInto, os::raw::c_int};
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
@@ -19,7 +19,7 @@ thread_local! {
   ));
 }
 
-unsafe extern "C" fn c_command_callback(args: *const classicube::String, args_count: c_int) {
+unsafe extern "C" fn c_command_callback(args: *const classicube_sys::String, args_count: c_int) {
   let args = std::slice::from_raw_parts(args, args_count.try_into().unwrap());
   let args: Vec<String> = args.iter().map(|cc_string| cc_string.to_string()).collect();
 

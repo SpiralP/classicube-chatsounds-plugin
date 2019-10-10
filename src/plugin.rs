@@ -1,9 +1,9 @@
 use crate::{command, events, events::TYPE, option, printer::PRINTER};
-use classicube::{
+use classicube_sys::{
   Event_Input, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
 };
 use detour::static_detour;
-use std::os::raw::c_int;
+use std::{convert::TryInto, os::raw::c_int};
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
@@ -21,8 +21,12 @@ fn tick_detour(task: *mut ScheduledTask) {
     if let Some(text) = text.borrow_mut().take() {
       for _ in 0..256 {
         unsafe {
-          Event_RaiseInput(&mut InputEvents.Down, Key__KEY_BACKSPACE, false);
-          Event_RaiseInt(&mut InputEvents.Up, Key__KEY_BACKSPACE);
+          Event_RaiseInput(
+            &mut InputEvents.Down,
+            Key__KEY_BACKSPACE.try_into().unwrap(),
+            false,
+          );
+          Event_RaiseInt(&mut InputEvents.Up, Key__KEY_BACKSPACE.try_into().unwrap());
         }
       }
 
@@ -69,7 +73,7 @@ pub fn unload() {
   option::unload();
 
   unsafe {
-    TICK_DETOUR.disable().unwrap();
+    let _ = TICK_DETOUR.disable();
   }
 
   crate::chatsounds::unload();
