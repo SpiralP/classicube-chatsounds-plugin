@@ -1,6 +1,6 @@
 use crate::{command, events, events::TYPE, option, printer::PRINTER};
 use classicube_sys::{
-  Event_Input, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
+  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
 };
 use detour::static_detour;
 use std::{convert::TryInto, os::raw::c_int};
@@ -37,18 +37,6 @@ fn tick_detour(task: *mut ScheduledTask) {
       }
     }
   });
-}
-
-pub unsafe fn Event_RaiseInput(handlers: &mut Event_Input, key: c_int, repeating: bool) {
-  for i in 0..handlers.Count {
-    if let Some(f) = handlers.Handlers[i as usize] {
-      (f)(
-        handlers.Objs[i as usize],
-        key,
-        if repeating { 1 } else { 0 },
-      );
-    }
-  }
 }
 
 pub fn load() {

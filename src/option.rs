@@ -1,4 +1,4 @@
-use classicube_sys::{Key_, Options_Get, Options_Set, STRING_SIZE};
+use classicube_sys::{Key_, Options_Get, Options_Set, OwnedString, STRING_SIZE};
 use std::{cell::Cell, ffi::CString, mem};
 
 thread_local! {
@@ -198,9 +198,9 @@ pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
 pub fn set<S: Into<Vec<u8>>>(key: S, value: String) {
   let c_key = CString::new(key).unwrap();
 
-  let cc_string_value = unsafe { classicube_sys::String::from_string(value) };
+  let cc_string_value = OwnedString::new(value);
 
   unsafe {
-    Options_Set(c_key.as_ptr(), &cc_string_value);
+    Options_Set(c_key.as_ptr(), cc_string_value.as_cc_string());
   }
 }

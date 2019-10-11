@@ -2,8 +2,8 @@ use crate::{chat::CHAT, chatsounds::CHATSOUNDS, printer::print, thread};
 use classicube_sys::{
   ChatEvents, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt,
   Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_,
-  Key__KEY_BACKSPACE, Key__KEY_TAB, MsgType, MsgType_MSG_TYPE_NORMAL, StringsBuffer_UNSAFE_Get,
-  TabList, TabList_Set,
+  Key__KEY_BACKSPACE, Key__KEY_TAB, MsgType, MsgType_MSG_TYPE_NORMAL, OwnedString,
+  StringsBuffer_UNSAFE_Get, TabList, TabList_Set,
 };
 use rand::seq::SliceRandom;
 use std::{
@@ -112,11 +112,17 @@ pub unsafe fn tablist_get_rank(id: u8) -> u8 {
 }
 
 pub unsafe fn tablist_set(id: u8, name: String, text: String, group: String, rank: u8) {
-  let name = classicube_sys::String::from_string(name);
-  let text = classicube_sys::String::from_string(text);
-  let group = classicube_sys::String::from_string(group);
+  let name = OwnedString::new(name);
+  let text = OwnedString::new(text);
+  let group = OwnedString::new(group);
 
-  TabList_Set(id, &name, &text, &group, rank);
+  TabList_Set(
+    id,
+    name.as_cc_string(),
+    text.as_cc_string(),
+    group.as_cc_string(),
+    rank,
+  );
 }
 
 extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
