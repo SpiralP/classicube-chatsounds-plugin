@@ -1,10 +1,10 @@
 use crate::{command, events, events::TYPE, option, printer::PRINTER};
 use classicube_sys::{
-  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, OwnedString, ScheduledTask,
-  Server,
+  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
+  String_AppendConst,
 };
 use detour::static_detour;
-use std::{cell::Cell, convert::TryInto, os::raw::c_int};
+use std::{cell::Cell, convert::TryInto, ffi::CString, os::raw::c_int};
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
@@ -41,7 +41,7 @@ fn tick_detour(task: *mut ScheduledTask) {
 }
 
 thread_local! {
-  static APP_NAME: Cell<Option<OwnedString>> = Cell::new(None);
+  static APP_NAME: Cell<Option<CString>> = Cell::new(None);
 }
 
 pub fn load() {
@@ -60,19 +60,13 @@ pub fn load() {
   crate::chatsounds::load();
 
   APP_NAME.with(|app_name| {
-    let last_app_name = unsafe { Server.AppName }.to_string();
+    let append_app_name = CString::new(format!(" + Test v{}", env!("CARGO_PKG_VERSION"))).unwrap();
 
-    let owned_string = OwnedString::new(format!(
-      "{} + Chatsounds v{}",
-      last_app_name,
-      env!("CARGO_PKG_VERSION")
-    ));
-
-    let cc_string = *owned_string.as_cc_string();
-    app_name.set(Some(owned_string));
+    let c_str = append_app_name.as_ptr();
+    app_name.set(Some(append_app_name));
 
     unsafe {
-      Server.AppName = cc_string;
+      String_AppendConst(&mut Server.AppName, c_str);
     }
   });
 }
@@ -87,4 +81,8 @@ pub fn unload() {
   }
 
   crate::chatsounds::unload();
+
+  APP_NAME.with(|app_name| {
+    app_name.set(None);
+  });
 }
