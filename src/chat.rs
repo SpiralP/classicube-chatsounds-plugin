@@ -1,12 +1,7 @@
-use crate::{
-  events::{tablist_set, UNSET_NAME},
-  option::{CHAT_KEY, SEND_CHAT_KEY},
-  printer::print,
-};
+use crate::option::{CHAT_KEY, SEND_CHAT_KEY};
 use classicube_sys::{
-  Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
-  Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
-  Key__KEY_UP,
+  Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_END, Key__KEY_ENTER, Key__KEY_ESCAPE,
+  Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
 };
 use std::{cell::RefCell, os::raw::c_int};
 
@@ -64,14 +59,6 @@ impl Chat {
         send_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_KP_ENTER;
 
       if chat_send_success || key == Key__KEY_ESCAPE {
-        UNSET_NAME.with(|unset_name| {
-          if let Some((name, text, group, rank)) = unset_name.borrow_mut().take() {
-            unsafe {
-              tablist_set(255, name, text, group, rank);
-            }
-          }
-        });
-
         if chat_send_success {
           self.history.push(self.text.to_vec());
         }

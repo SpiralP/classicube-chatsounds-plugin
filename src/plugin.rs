@@ -1,9 +1,10 @@
 use crate::{command, events, events::TYPE, option, printer::PRINTER};
 use classicube_sys::{
-  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
+  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, OwnedString, ScheduledTask,
+  Server,
 };
 use detour::static_detour;
-use std::{convert::TryInto, os::raw::c_int};
+use std::{cell::Cell, convert::TryInto, os::raw::c_int};
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
@@ -39,6 +40,10 @@ fn tick_detour(task: *mut ScheduledTask) {
   });
 }
 
+thread_local! {
+  static APP_NAME: Cell<Option<OwnedString>> = Cell::new(None);
+}
+
 pub fn load() {
   events::load();
   command::load();
@@ -53,6 +58,23 @@ pub fn load() {
   }
 
   crate::chatsounds::load();
+
+  APP_NAME.with(|app_name| {
+    let last_app_name = unsafe { Server.AppName }.to_string();
+
+    let owned_string = OwnedString::new(format!(
+      "{} + Chatsounds v{}",
+      last_app_name,
+      env!("CARGO_PKG_VERSION")
+    ));
+
+    let cc_string = *owned_string.as_cc_string();
+    app_name.set(Some(owned_string));
+
+    unsafe {
+      Server.AppName = cc_string;
+    }
+  });
 }
 
 pub fn unload() {

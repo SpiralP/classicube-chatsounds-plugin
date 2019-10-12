@@ -1,13 +1,12 @@
 use crate::{chat::CHAT, chatsounds::CHATSOUNDS, printer::print, thread};
 use classicube_sys::{
-  ChatEvents, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt,
-  Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_,
-  Key__KEY_BACKSPACE, Key__KEY_TAB, MsgType, MsgType_MSG_TYPE_NORMAL, OwnedString,
-  StringsBuffer_UNSAFE_Get, TabList, TabList_Set,
+  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
+  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_TAB, MsgType,
+  MsgType_MSG_TYPE_NORMAL,
 };
 use rand::seq::SliceRandom;
 use std::{
-  cell::{Cell, RefCell},
+  cell::RefCell,
   convert::TryInto,
   os::raw::{c_int, c_void},
   ptr,
@@ -42,7 +41,6 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
 
 thread_local! {
   static CHAT_LAST: RefCell<Option<String>> = RefCell::new(None);
-  pub static UNSET_NAME: RefCell<Option<(String, String, String, u8)>> = RefCell::new(None);
   pub static TYPE: RefCell<Option<String>> = RefCell::new(None);
 }
 
@@ -81,48 +79,6 @@ extern "C" fn on_chat_received(
   });
 
   handle_chat_message(&full_msg);
-}
-
-pub unsafe fn tablist_get_name(id: u8) -> String {
-  StringsBuffer_UNSAFE_Get(
-    &mut TabList._buffer,
-    c_int::from(TabList.NameOffsets[id as usize] - 3),
-  )
-  .to_string()
-}
-
-pub unsafe fn tablist_get_text(id: u8) -> String {
-  StringsBuffer_UNSAFE_Get(
-    &mut TabList._buffer,
-    c_int::from(TabList.NameOffsets[id as usize] - 2),
-  )
-  .to_string()
-}
-
-pub unsafe fn tablist_get_group(id: u8) -> String {
-  StringsBuffer_UNSAFE_Get(
-    &mut TabList._buffer,
-    c_int::from(TabList.NameOffsets[id as usize] - 1),
-  )
-  .to_string()
-}
-
-pub unsafe fn tablist_get_rank(id: u8) -> u8 {
-  TabList.GroupRanks[id as usize]
-}
-
-pub unsafe fn tablist_set(id: u8, name: String, text: String, group: String, rank: u8) {
-  let name = OwnedString::new(name);
-  let text = OwnedString::new(text);
-  let group = OwnedString::new(group);
-
-  TabList_Set(
-    id,
-    name.as_cc_string(),
-    text.as_cc_string(),
-    group.as_cc_string(),
-    rank,
-  );
 }
 
 extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {

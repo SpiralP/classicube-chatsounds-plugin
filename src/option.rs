@@ -1,5 +1,5 @@
 use classicube_sys::{Key_, Options_Get, Options_Set, OwnedString, STRING_SIZE};
-use std::{cell::Cell, ffi::CString, mem};
+use std::{cell::Cell, ffi::CString, os::raw::c_char};
 
 thread_local! {
   pub static CHAT_KEY: Cell<Option<Key_>> = Cell::new(None);
@@ -174,10 +174,9 @@ pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
   let c_key = CString::new(key).unwrap();
   let c_default = CString::new("").unwrap();
 
-  let mut buffer: [u8; (STRING_SIZE as usize) + 1] =
-    unsafe { mem::MaybeUninit::zeroed().assume_init() };
+  let mut buffer: [c_char; (STRING_SIZE as usize) + 1] = [0; (STRING_SIZE as usize) + 1];
   let mut cc_string_value = classicube_sys::String {
-    buffer: buffer.as_mut_ptr() as *mut i8,
+    buffer: buffer.as_mut_ptr(),
     capacity: STRING_SIZE as u16,
     length: 0,
   };
