@@ -1,13 +1,13 @@
-use crate::{chat::CHAT, chatsounds::CHATSOUNDS, printer::print, thread};
+use crate::{chat::CHAT, chatsounds::CHATSOUNDS, thread};
 use classicube_sys::{
-  ChatEvents, Event_RegisterChat, Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat,
-  Event_UnregisterInput, Event_UnregisterInt, InputEvents, Key_, Key__KEY_TAB, MsgType,
+  ChatEvents, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat, Event_RegisterInt,
+  Event_UnregisterChat, Event_UnregisterInt, InputEvents, Key_, Key__KEY_BACKSPACE, MsgType,
   MsgType_MSG_TYPE_NORMAL,
 };
+use detour::static_detour;
 use rand::seq::SliceRandom;
 use std::{
   cell::RefCell,
-  convert::TryInto,
   os::raw::{c_int, c_void},
   ptr,
 };
@@ -49,7 +49,9 @@ extern "C" fn on_chat_received(
   full_msg: *const classicube_sys::String,
   msg_type: c_int,
 ) {
-  let msg_type: MsgType = msg_type.try_into().unwrap();
+  // TODO remove all &1 colors, then first find colon
+
+  let msg_type: MsgType = msg_type as MsgType;
 
   if msg_type != MsgType_MSG_TYPE_NORMAL {
     return;
@@ -81,69 +83,92 @@ extern "C" fn on_chat_received(
   handle_chat_message(&full_msg);
 }
 
-extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
-  let key: Key_ = key.try_into().unwrap();
+static_detour! {
+  static KEY_DOWN_DETOUR: unsafe extern "C" fn(*mut c_void, c_int, u8);
+}
 
-  CHAT.with(|chat| {
-    let mut chat = chat.borrow_mut();
+fn key_down_detour(obj: *mut c_void, key: c_int, repeat: u8) {
+  let should_handle_input = {
+    let key: Key_ = key as Key_;
+    let repeat = repeat != 0;
 
-    chat.handle_key_down(key, repeat != 0);
+    on_key_down(obj, key, repeat)
+  };
 
-    if chat.is_open() && key == Key__KEY_TAB {
-      let text = chat.get_text();
-      let text = text.trim();
-
-      if !text.is_empty() {
-        if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-          let results = chatsounds.search(text);
-
-          let mut ag = None;
-          for &result in results.iter().take(3).rev() {
-            print(result);
-            ag = Some(result.to_string());
-          }
-
-          if let Some(text) = ag {
-            TYPE.with(|t| {
-              *t.borrow_mut() = Some(text);
-            });
-          }
-        }
-      }
+  if should_handle_input {
+    unsafe {
+      // call original
+      KEY_DOWN_DETOUR.call(obj, key, repeat);
     }
-  });
+  }
+}
+
+fn on_key_down(_obj: *mut c_void, key: Key_, repeat: bool) -> bool {
+  CHAT.with(|chat| {
+    if let Ok(mut chat) = chat.try_borrow_mut() {
+      chat.handle_key_down(key, repeat)
+    } else {
+      true
+    }
+  })
 }
 
 extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
   CHAT.with(|chat| {
-    let mut chat = chat.borrow_mut();
-
-    chat.handle_key_press(key);
+    if let Ok(mut chat) = chat.try_borrow_mut() {
+      chat.handle_key_press(key);
+    }
   });
+}
+
+// TODO make a class of this
+pub fn simulate_typing(text: String) {
+  for c in text.chars() {
+    unsafe {
+      Event_RaiseInt(&mut InputEvents.Press, c as c_int);
+    }
+  }
+}
+
+pub fn simulate_clear_chat() {
+  for _ in 0..192 {
+    // TODO maybe ctrl-backspace?
+    unsafe {
+      Event_RaiseInput(&mut InputEvents.Down, Key__KEY_BACKSPACE as _, false);
+      Event_RaiseInt(&mut InputEvents.Up, Key__KEY_BACKSPACE as _);
+    }
+  }
 }
 
 pub fn load() {
   unsafe {
+    KEY_DOWN_DETOUR
+      .initialize(InputEvents.Down.Handlers[0].unwrap(), key_down_detour)
+      .unwrap();
+    KEY_DOWN_DETOUR.enable().unwrap();
+
     Event_RegisterChat(
       &mut ChatEvents.ChatReceived,
       ptr::null_mut(),
       Some(on_chat_received),
     );
 
-    Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    // Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
     Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
 }
 
 pub fn unload() {
   unsafe {
+    let _ = KEY_DOWN_DETOUR.disable();
+
     Event_UnregisterChat(
       &mut ChatEvents.ChatReceived,
       ptr::null_mut(),
       Some(on_chat_received),
     );
 
-    Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    // Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
     Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
 }

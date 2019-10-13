@@ -1,60 +1,62 @@
 use classicube_sys::{
-  Chat_AddOf, MsgType, MsgType_MSG_TYPE_BOTTOMRIGHT_1, MsgType_MSG_TYPE_BOTTOMRIGHT_2,
-  MsgType_MSG_TYPE_BOTTOMRIGHT_3, MsgType_MSG_TYPE_NORMAL,
+  Chat_AddOf, MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2, MsgType_MSG_TYPE_NORMAL, OwnedString,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::{
-  collections::VecDeque,
-  convert::TryInto,
-  ffi::CString,
+  os::raw::c_int,
   time::{Duration, Instant},
 };
+
+const DEFAULT_STATUS_DURATION: Duration = Duration::from_secs(10);
 
 lazy_static! {
   pub static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
 }
 
+enum Message {
+  Normal(String),
+  Status(String),
+  // StatusDuration(String, Duration),
+}
+
 pub struct Printer {
-  sender: Sender<String>,
-  receiver: Receiver<String>,
-  last_messages: VecDeque<(String, Instant)>,
-  remove_delay: Duration,
+  sender: Sender<Message>,
+  receiver: Receiver<Message>,
+  status_decay: Option<Instant>,
 }
 impl Printer {
   pub fn new() -> Self {
     let (sender, receiver) = unbounded();
+
     Self {
       sender,
       receiver,
-      last_messages: VecDeque::with_capacity(4),
-      remove_delay: Duration::from_secs(10),
+      status_decay: None,
     }
   }
 
   pub fn print<T: Into<String>>(&self, s: T) {
-    self.sender.send(s.into()).unwrap();
+    self.sender.send(Message::Normal(s.into())).unwrap();
   }
 
+  pub fn status<T: Into<String>>(&self, s: T) {
+    self.sender.send(Message::Status(s.into())).unwrap();
+  }
+
+  // pub fn status_duration<T: Into<String>>(&self, s: T, duration: Duration) {
+  //   self
+  //     .sender
+  //     .send(Message::StatusDuration(s.into(), duration))
+  //     .unwrap();
+  // }
+
   pub fn chat_add_of<S: Into<Vec<u8>>>(s: S, msg_type: MsgType) {
-    let s = s.into();
-
-    let length = s.len() as u16;
-    let capacity = s.len() as u16;
-
-    let c_str = CString::new(s).unwrap();
-
-    let buffer = c_str.as_ptr() as *mut i8;
-
-    let cc_str = classicube_sys::String {
-      buffer,
-      length,
-      capacity,
-    };
+    let owned_string = OwnedString::new(s);
 
     unsafe {
-      Chat_AddOf(&cc_str, msg_type.try_into().unwrap());
+      Chat_AddOf(owned_string.as_cc_string(), msg_type as c_int);
     }
   }
 
@@ -65,41 +67,25 @@ impl Printer {
   pub fn flush(&mut self) {
     let now = Instant::now();
 
-    for s in self.receiver.try_iter() {
-      self.last_messages.push_front((s, now));
+    for message in self.receiver.try_iter() {
+      match message {
+        Message::Normal(s) => {
+          Printer::chat_add(s);
+        }
 
-      if let Some((s, _)) = self.last_messages.get(0) {
-        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
-      }
-
-      if let Some((s, _)) = self.last_messages.get(1) {
-        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
-      }
-
-      if let Some((s, _)) = self.last_messages.get(2) {
-        Printer::chat_add_of(s.clone(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
-      }
-
-      if self.last_messages.len() == 4 {
-        self.last_messages.pop_back();
+        Message::Status(s) => {
+          Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+          self.status_decay = Some(now + DEFAULT_STATUS_DURATION);
+        } // Message::StatusDuration(s, duration) => {
+          //   Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+          //   self.status_decay = Some(now + duration);
+          // }
       }
     }
 
-    if let Some((_, time)) = self.last_messages.get(0) {
-      if (now - *time) > self.remove_delay {
-        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_1);
-      }
-    }
-
-    if let Some((_, time)) = self.last_messages.get(1) {
-      if (now - *time) > self.remove_delay {
-        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_2);
-      }
-    }
-
-    if let Some((_, time)) = self.last_messages.get(2) {
-      if (now - *time) > self.remove_delay {
-        Printer::chat_add_of(String::new(), MsgType_MSG_TYPE_BOTTOMRIGHT_3);
+    if let Some(status_decay) = self.status_decay {
+      if now >= status_decay {
+        Self::chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
       }
     }
   }
@@ -107,4 +93,8 @@ impl Printer {
 
 pub fn print<T: Into<String>>(s: T) {
   PRINTER.lock().print(s)
+}
+
+pub fn status<T: Into<String>>(s: T) {
+  PRINTER.lock().status(s);
 }

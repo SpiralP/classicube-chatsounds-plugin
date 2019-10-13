@@ -1,10 +1,11 @@
-use crate::{command, events, events::TYPE, option, printer::PRINTER};
-use classicube_sys::{
-  Event_RaiseInput, Event_RaiseInt, InputEvents, Key__KEY_BACKSPACE, ScheduledTask, Server,
-  String_AppendConst,
-};
+use crate::{command, events, option, printer::PRINTER};
+use classicube_sys::{ScheduledTask, Server, String_AppendConst};
 use detour::static_detour;
-use std::{cell::Cell, convert::TryInto, ffi::CString, os::raw::c_int};
+use std::{cell::Cell, ffi::CString};
+
+thread_local! {
+  static APP_NAME: Cell<Option<CString>> = Cell::new(None);
+}
 
 static_detour! {
   static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
@@ -17,37 +18,11 @@ fn tick_detour(task: *mut ScheduledTask) {
   }
 
   PRINTER.lock().flush();
-
-  TYPE.with(|text| {
-    if let Some(text) = text.borrow_mut().take() {
-      for _ in 0..256 {
-        unsafe {
-          Event_RaiseInput(
-            &mut InputEvents.Down,
-            Key__KEY_BACKSPACE.try_into().unwrap(),
-            false,
-          );
-          Event_RaiseInt(&mut InputEvents.Up, Key__KEY_BACKSPACE.try_into().unwrap());
-        }
-      }
-
-      for c in text.chars() {
-        unsafe {
-          Event_RaiseInt(&mut InputEvents.Press, c as c_int);
-        }
-      }
-    }
-  });
-}
-
-thread_local! {
-  static APP_NAME: Cell<Option<CString>> = Cell::new(None);
 }
 
 pub fn load() {
   events::load();
   command::load();
-
   option::load();
 
   unsafe {

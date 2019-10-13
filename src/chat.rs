@@ -1,7 +1,11 @@
-use crate::option::{CHAT_KEY, SEND_CHAT_KEY};
+use crate::{
+  chatsounds::CHATSOUNDS,
+  option::{CHAT_KEY, SEND_CHAT_KEY},
+  printer::{print, status},
+};
 use classicube_sys::{
   Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_END, Key__KEY_ENTER, Key__KEY_ESCAPE,
-  Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
+  Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH, Key__KEY_TAB,
 };
 use std::{cell::RefCell, os::raw::c_int};
 
@@ -16,7 +20,7 @@ pub struct Chat {
   dedupe_open_key: bool,
 
   history: Vec<Vec<u8>>,
-  history_pos: usize,
+  // TODO history_pos: usize,
 }
 impl Chat {
   pub fn new() -> Self {
@@ -30,15 +34,11 @@ impl Chat {
     }
   }
 
-  pub fn is_open(&self) -> bool {
-    self.open
-  }
-
   pub fn get_text(&self) -> String {
     String::from_utf8_lossy(&self.text).to_string()
   }
 
-  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
+  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) -> bool {
     if !repeat {
       let chat_key = CHAT_KEY.with(|chat_key| chat_key.get());
       let send_chat_key = SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get());
@@ -52,7 +52,8 @@ impl Chat {
         if key != Key__KEY_ENTER {
           self.dedupe_open_key = true;
         }
-        return;
+
+        return true;
       }
 
       let chat_send_success =
@@ -66,7 +67,8 @@ impl Chat {
         self.open = false;
         self.text.clear();
         self.cursor_pos = 0;
-        return;
+
+        return true;
       }
     }
 
@@ -107,7 +109,44 @@ impl Chat {
       }
 
       // print(self.get_text());
+
+      if key == Key__KEY_TAB {
+        let input = &self.get_text();
+
+        if !input.trim().is_empty() {
+          if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+            let results = chatsounds.search(input);
+
+            if let Some(&(pos, sentence)) = results
+              .iter()
+              .filter(|(_pos, sentence)| {
+                // max chat input length
+                sentence.len() <= 192
+              })
+              .nth(0)
+            {
+              status(sentence);
+
+              if pos == 0 {
+                // type the rest of sentence
+
+                let rest = &sentence[input.len()..];
+                print(format!("rest: {:?}", rest));
+              // simulate_typing(rest.to_string());
+
+              // self.cursor_pos += rest.len();
+              } else {
+                //
+              }
+
+              return false; // don't handle tab because we are
+            }
+          }
+        }
+      }
     }
+
+    true
   }
 
   pub fn handle_key_press(&mut self, key: c_int) {
