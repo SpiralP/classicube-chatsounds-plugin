@@ -315,6 +315,8 @@ impl Chat {
           self.hint_pos = 0;
         }
 
+        // TODO if hint matches input then must tab, shift-tab to get the last item
+
         let show_pos = self.hint_pos.checked_sub(1).unwrap_or(hints_len - 1);
 
         let (_pos, sentence) = &hints[show_pos];

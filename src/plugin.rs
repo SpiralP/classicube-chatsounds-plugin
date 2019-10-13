@@ -35,8 +35,7 @@ pub fn load() {
   crate::chatsounds::load();
 
   APP_NAME.with(|app_name| {
-    let append_app_name =
-      CString::new(format!(" + Chatsounds v{}", env!("CARGO_PKG_VERSION"))).unwrap();
+    let append_app_name = CString::new(format!(" +cs{}", env!("CARGO_PKG_VERSION"))).unwrap();
 
     let c_str = append_app_name.as_ptr();
     app_name.set(Some(append_app_name));
