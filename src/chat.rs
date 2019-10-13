@@ -6,10 +6,10 @@ use crate::{
 };
 use classicube_sys::{
   Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
-  Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LEFT, Key__KEY_RIGHT, Key__KEY_SLASH,
-  Key__KEY_TAB, Key__KEY_UP,
+  Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LCTRL, Key__KEY_LEFT, Key__KEY_RCTRL,
+  Key__KEY_RIGHT, Key__KEY_SLASH, Key__KEY_TAB, Key__KEY_UP,
 };
-use std::{cell::RefCell, os::raw::c_int};
+use std::{cell::RefCell, collections::HashMap, os::raw::c_int};
 
 thread_local! {
   pub static CHAT: RefCell<Chat> = RefCell::new(Chat::new());
@@ -25,6 +25,8 @@ pub struct Chat {
   // TODO history_pos: usize,
   /// a full sentence to show in grey around what you've typed
   hint: Option<String>,
+
+  held_keys: HashMap<Key_, bool>,
 }
 
 impl Chat {
@@ -37,6 +39,7 @@ impl Chat {
       history: Vec::new(),
       // history_pos: 0,
       hint: None,
+      held_keys: HashMap::new(),
     }
   }
 
@@ -137,18 +140,84 @@ impl Chat {
     self.cursor_pos += 1;
   }
 
+  #[allow(clippy::cognitive_complexity)]
   fn handle_key(&mut self, key: Key_) {
     if key == Key__KEY_LEFT {
-      if self.cursor_pos > 0 {
+      if self.is_ctrl_held() {
+        let mut found_non_space = false;
+        loop {
+          if self.cursor_pos > 0 {
+            if let Some(&chr) = self.text.get(self.cursor_pos - 1) {
+              self.cursor_pos -= 1;
+
+              if chr == b' ' && found_non_space {
+                break;
+              }
+
+              if !found_non_space && chr != b' ' {
+                found_non_space = true;
+              }
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+      } else if self.cursor_pos > 0 {
         self.cursor_pos -= 1;
       }
     } else if key == Key__KEY_RIGHT {
-      if self.text.len() > self.cursor_pos {
+      if self.is_ctrl_held() {
+        let mut found_space = false;
+        loop {
+          if self.text.len() > self.cursor_pos {
+            if let Some(&chr) = self.text.get(self.cursor_pos) {
+              if chr != b' ' && found_space {
+                break;
+              }
+
+              if !found_space && chr == b' ' {
+                found_space = true;
+              }
+
+              self.cursor_pos += 1;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+      } else if self.text.len() > self.cursor_pos {
         self.cursor_pos += 1;
       }
     } else if key == Key__KEY_BACKSPACE {
-      // TODO ctrl-backspace word delete
-      if self.cursor_pos > 0 && self.text.get(self.cursor_pos - 1).is_some() {
+      if self.is_ctrl_held() {
+        // ctrl-backspace remove word
+
+        let mut found_non_space = false;
+        loop {
+          if self.cursor_pos > 0 {
+            if let Some(&chr) = self.text.get(self.cursor_pos - 1) {
+              if chr == b' ' && found_non_space {
+                break;
+              }
+
+              if !found_non_space && chr != b' ' {
+                found_non_space = true;
+              }
+
+              self.text.remove(self.cursor_pos - 1);
+              self.cursor_pos -= 1;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+      } else if self.cursor_pos > 0 && self.text.get(self.cursor_pos - 1).is_some() {
         self.text.remove(self.cursor_pos - 1);
         self.cursor_pos -= 1;
       }
@@ -184,8 +253,11 @@ impl Chat {
       if let Some(hint) = &self.hint {
         let hint = hint.to_string();
         self.set_text(hint);
+        self.render_hint();
       }
     }
+
+    print(format!("{} {:?}", self.cursor_pos, self.get_text()));
   }
 
   pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
@@ -222,11 +294,36 @@ impl Chat {
 
         return;
       }
-    }
+
+      self.handle_held_keys(key, true);
+    } // if !repeat
 
     if self.open {
       self.handle_key(key);
     }
+  }
+
+  fn handle_held_keys(&mut self, key: Key_, down: bool) {
+    if key == Key__KEY_LCTRL || key == Key__KEY_RCTRL {
+      self.held_keys.insert(key, down);
+    }
+  }
+
+  fn is_ctrl_held(&self) -> bool {
+    self
+      .held_keys
+      .get(&Key__KEY_LCTRL)
+      .copied()
+      .unwrap_or(false)
+      || self
+        .held_keys
+        .get(&Key__KEY_RCTRL)
+        .copied()
+        .unwrap_or(false)
+  }
+
+  pub fn handle_key_up(&mut self, key: Key_) {
+    self.handle_held_keys(key, false);
   }
 
   pub fn handle_key_press(&mut self, key: c_int) {

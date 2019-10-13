@@ -100,6 +100,18 @@ extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
     chat.handle_key_down(key, repeat);
   });
 }
+extern "C" fn on_key_up(_obj: *mut c_void, key: c_int) {
+  if SIMULATING.with(|simulating| simulating.get()) {
+    return;
+  }
+
+  CHAT.with(|chat| {
+    let key: Key_ = key as Key_;
+
+    let mut chat = chat.borrow_mut();
+    chat.handle_key_up(key);
+  });
+}
 
 extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
   if SIMULATING.with(|simulating| simulating.get()) {
@@ -150,6 +162,7 @@ pub fn load() {
     );
 
     Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    Event_RegisterInt(&mut InputEvents.Up, ptr::null_mut(), Some(on_key_up));
     Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
 }
@@ -163,6 +176,7 @@ pub fn unload() {
     );
 
     Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    Event_UnregisterInt(&mut InputEvents.Up, ptr::null_mut(), Some(on_key_up));
     Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
 }
