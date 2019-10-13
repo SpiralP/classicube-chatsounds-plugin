@@ -2,7 +2,7 @@ use crate::{
   chatsounds::CHATSOUNDS,
   events::{simulate_char, simulate_key},
   option::{CHAT_KEY, SEND_CHAT_KEY},
-  printer::{print, status, status_forever},
+  printer::{print, status_forever},
 };
 use classicube_sys::{
   Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
@@ -22,7 +22,9 @@ pub struct Chat {
   dedupe_open_key: bool,
 
   history: Vec<Vec<u8>>,
-  // TODO history_pos: usize,
+  history_pos: usize,
+  history_restore: Option<Vec<u8>>,
+
   /// a full sentence to show in grey around what you've typed
   hint: Option<String>,
 
@@ -37,7 +39,8 @@ impl Chat {
       cursor_pos: 0,
       dedupe_open_key: false,
       history: Vec::new(),
-      // history_pos: 0,
+      history_pos: 0,
+      history_restore: None,
       hint: None,
       held_keys: HashMap::new(),
     }
@@ -233,22 +236,47 @@ impl Chat {
       self.cursor_pos = 0;
     } else if key == Key__KEY_END {
       self.cursor_pos = self.text.len();
-    } else if key == Key__KEY_UP || key == Key__KEY_DOWN {
-      self.open = false; // stop listening for now
+    } else if key == Key__KEY_UP {
+      if self.is_ctrl_held() {
+        // ??
+        return;
+      }
 
-    // } else if key == Key__KEY_UP {
+      if self.history_pos == 0 {
+        self.history_restore = Some(self.text.to_vec());
+      }
 
-    // TODO
-    // if self.history_pos < self.history.len() {
-    // self.history_pos += 1;
-    // }
+      if self.history_pos < self.history.len() {
+        self.history_pos += 1;
+        self.text = self.history[self.history.len() - self.history_pos].to_vec();
+        self.cursor_pos = self.text.len();
+      }
 
-    // let text = self.history[self.history.len() - self.history_pos];
-    // } else if key == Key__KEY_DOWN {
+      self.render_hint();
+    } else if key == Key__KEY_DOWN {
+      if self.is_ctrl_held() {
+        self.cursor_pos = self.text.len();
+        return;
+      }
 
-    // if self.history_pos > 0 {
-    //   self.history_pos -= 1;
-    // }
+      if self.history_pos > 1 {
+        self.history_pos -= 1;
+        self.text = self.history[self.history.len() - self.history_pos].to_vec();
+      } else if self.history_pos == 1 {
+        self.history_pos -= 1;
+        if let Some(history_restore) = &self.history_restore {
+          self.text = history_restore.to_vec();
+        }
+      } else if self.history_pos == 0 {
+        if let Some(history_restore) = &self.history_restore {
+          self.text = history_restore.to_vec();
+        } else {
+          self.text.clear();
+        }
+      }
+      self.cursor_pos = self.text.len();
+
+      self.render_hint();
     } else if key == Key__KEY_TAB {
       if let Some(hint) = &self.hint {
         let hint = hint.to_string();
@@ -268,6 +296,8 @@ impl Chat {
         self.open = true;
         self.text.clear();
         self.cursor_pos = 0;
+        self.history_pos = 0;
+        self.history_restore = None;
 
         if key == Key__KEY_SLASH {
           self.handle_char_insert(b'/');
