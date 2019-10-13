@@ -18,7 +18,7 @@ lazy_static! {
 enum Message {
   Normal(String),
   Status(String),
-  // StatusDuration(String, Duration),
+  StatusForever(String),
 }
 
 pub struct Printer {
@@ -45,12 +45,9 @@ impl Printer {
     self.sender.send(Message::Status(s.into())).unwrap();
   }
 
-  // pub fn status_duration<T: Into<String>>(&self, s: T, duration: Duration) {
-  //   self
-  //     .sender
-  //     .send(Message::StatusDuration(s.into(), duration))
-  //     .unwrap();
-  // }
+  pub fn status_forever<T: Into<String>>(&self, s: T) {
+    self.sender.send(Message::StatusForever(s.into())).unwrap();
+  }
 
   pub fn chat_add_of<S: Into<Vec<u8>>>(s: S, msg_type: MsgType) {
     let owned_string = OwnedString::new(s);
@@ -76,10 +73,12 @@ impl Printer {
         Message::Status(s) => {
           Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
           self.status_decay = Some(now + DEFAULT_STATUS_DURATION);
-        } // Message::StatusDuration(s, duration) => {
-          //   Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
-          //   self.status_decay = Some(now + duration);
-          // }
+        }
+
+        Message::StatusForever(s) => {
+          Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+          self.status_decay = None;
+        }
       }
     }
 
@@ -92,9 +91,14 @@ impl Printer {
 }
 
 pub fn print<T: Into<String>>(s: T) {
+  // TODO check if main thread somehow and print directly
   PRINTER.lock().print(s)
 }
 
 pub fn status<T: Into<String>>(s: T) {
   PRINTER.lock().status(s);
+}
+
+pub fn status_forever<T: Into<String>>(s: T) {
+  PRINTER.lock().status_forever(s);
 }

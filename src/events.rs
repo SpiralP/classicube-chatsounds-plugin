@@ -7,7 +7,7 @@ use classicube_sys::{
 use detour::static_detour;
 use rand::seq::SliceRandom;
 use std::{
-  cell::RefCell,
+  cell::{Cell, RefCell},
   os::raw::{c_int, c_void},
   ptr,
 };
@@ -103,41 +103,59 @@ fn key_down_detour(obj: *mut c_void, key: c_int, repeat: u8) {
   }
 }
 
+thread_local! {
+  static SIMULATING: Cell<bool> = Cell::new(false);
+}
+
 fn on_key_down(_obj: *mut c_void, key: Key_, repeat: bool) -> bool {
+  if SIMULATING.with(|simulating| simulating.get()) {
+    return true;
+  }
+
   CHAT.with(|chat| {
-    if let Ok(mut chat) = chat.try_borrow_mut() {
-      chat.handle_key_down(key, repeat)
-    } else {
-      true
-    }
+    let mut chat = chat.borrow_mut();
+    chat.handle_key_down(key, repeat)
   })
 }
 
 extern "C" fn on_key_press(_obj: *mut c_void, key: c_int) {
+  if SIMULATING.with(|simulating| simulating.get()) {
+    return;
+  }
+
   CHAT.with(|chat| {
-    if let Ok(mut chat) = chat.try_borrow_mut() {
-      chat.handle_key_press(key);
-    }
+    let mut chat = chat.borrow_mut();
+    chat.handle_key_press(key);
   });
 }
 
-// TODO make a class of this
-pub fn simulate_typing(text: String) {
-  for c in text.chars() {
-    unsafe {
-      Event_RaiseInt(&mut InputEvents.Press, c as c_int);
-    }
+pub fn simulate_char(chr: u8) {
+  SIMULATING.with(|simulating| {
+    simulating.set(true);
+  });
+
+  unsafe {
+    Event_RaiseInt(&mut InputEvents.Press, c_int::from(chr));
   }
+
+  SIMULATING.with(|simulating| {
+    simulating.set(false);
+  });
 }
 
-pub fn simulate_clear_chat() {
-  for _ in 0..192 {
-    // TODO maybe ctrl-backspace?
-    unsafe {
-      Event_RaiseInput(&mut InputEvents.Down, Key__KEY_BACKSPACE as _, false);
-      Event_RaiseInt(&mut InputEvents.Up, Key__KEY_BACKSPACE as _);
-    }
+pub fn simulate_key(key: Key_) {
+  SIMULATING.with(|simulating| {
+    simulating.set(true);
+  });
+
+  unsafe {
+    Event_RaiseInput(&mut InputEvents.Down, key as _, false);
+    Event_RaiseInt(&mut InputEvents.Up, key as _);
   }
+
+  SIMULATING.with(|simulating| {
+    simulating.set(false);
+  });
 }
 
 pub fn load() {
