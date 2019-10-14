@@ -1,4 +1,4 @@
-use crate::{command, events, option, printer::PRINTER};
+use crate::{command, entities, events, option, printer::PRINTER, tablist};
 use classicube_sys::{ScheduledTask, Server, String_AppendConst};
 use detour::static_detour;
 use std::{cell::Cell, ffi::CString};
@@ -18,12 +18,15 @@ fn tick_detour(task: *mut ScheduledTask) {
   }
 
   PRINTER.lock().flush();
+  // TODO SPATIAL_SOUNDS.lock().update();
 }
 
 pub fn load() {
   events::load();
   command::load();
   option::load();
+  entities::load();
+  tablist::load();
 
   unsafe {
     if let Some(tick_original) = Server.Tick {
@@ -48,8 +51,9 @@ pub fn load() {
 
 pub fn unload() {
   events::unload();
-
   option::unload();
+  entities::unload();
+  tablist::unload();
 
   unsafe {
     let _ = TICK_DETOUR.disable();
@@ -61,3 +65,24 @@ pub fn unload() {
     app_name.set(None);
   });
 }
+
+// pub fn reset() {
+//   ENTITIES.with(|entities| {
+//     let mut entities = entities.borrow_mut();
+//     entities.clear();
+//   });
+// }
+
+// pub fn on_new_map() {
+//   ENTITIES.with(|entities| {
+//     let mut entities = entities.borrow_mut();
+//     entities.clear();
+//   });
+// }
+
+// pub fn on_new_map_loaded() {
+//   ENTITIES.with(|entities| {
+//     let mut entities = entities.borrow_mut();
+//     *entities = get_all_entities();
+//   });
+// }

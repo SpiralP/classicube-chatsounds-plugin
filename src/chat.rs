@@ -338,6 +338,8 @@ impl Chat {
         self.cursor_pos = 0;
         self.history_pos = 0;
         self.history_restore = None;
+        self.hints = None;
+        self.hint_pos = 0;
 
         if key == Key__KEY_SLASH {
           self.handle_char_insert(b'/');
@@ -348,6 +350,7 @@ impl Chat {
           self.dedupe_open_key = true;
         }
 
+        self.render_hints();
         return;
       }
 
@@ -361,6 +364,14 @@ impl Chat {
         }
 
         self.open = false;
+        self.text.clear();
+        self.cursor_pos = 0;
+        self.history_pos = 0;
+        self.history_restore = None;
+        self.hints = None;
+        self.hint_pos = 0;
+
+        self.render_hints();
 
         return;
       }

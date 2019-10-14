@@ -1,3 +1,4 @@
+use crate::events::SIMULATING;
 use classicube_sys::{
   Chat_AddOf, MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2, MsgType_MSG_TYPE_NORMAL, OwnedString,
 };
@@ -52,9 +53,17 @@ impl Printer {
   pub fn chat_add_of<S: Into<Vec<u8>>>(s: S, msg_type: MsgType) {
     let owned_string = OwnedString::new(s);
 
+    SIMULATING.with(|simulating| {
+      simulating.set(true);
+    });
+
     unsafe {
       Chat_AddOf(owned_string.as_cc_string(), msg_type as c_int);
     }
+
+    SIMULATING.with(|simulating| {
+      simulating.set(false);
+    });
   }
 
   pub fn chat_add<S: Into<Vec<u8>>>(s: S) {

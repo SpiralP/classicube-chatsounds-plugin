@@ -1,10 +1,13 @@
 mod chat;
 mod chatsounds;
 mod command;
+mod entities;
 mod events;
+mod helpers;
 mod option;
 mod plugin;
 mod printer;
+mod tablist;
 mod thread;
 
 use classicube_sys::IGameComponent;

@@ -1,4 +1,7 @@
-use crate::{chat::CHAT, chatsounds::CHATSOUNDS, thread};
+use crate::{
+  chat::CHAT, chatsounds::CHATSOUNDS, entities::ENTITIES, helpers::remove_color, printer::print,
+  tablist::TABLIST, thread,
+};
 use classicube_sys::{
   ChatEvents, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput,
   Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents,
@@ -11,30 +14,125 @@ use std::{
   ptr,
 };
 
-fn handle_chat_message<S: Into<String>>(full_msg: S) {
-  let mut full_msg = full_msg.into();
+thread_local! {
+  pub static SIMULATING: Cell<bool> = Cell::new(false);
+}
 
-  if let Some(pos) = full_msg.rfind("&f") {
-    let msg = full_msg.split_off(pos + 2);
+fn play_chatsound(entity_id: usize, sentence: String) {
+  // TODO need the main thread tick to update positions
 
-    thread::spawn("chatsounds handle message", move || {
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-        let msg = msg.trim();
+  ENTITIES.with(|entities| {
+    let entities = entities.borrow();
 
-        if msg.to_lowercase() == "sh" {
-          chatsounds.stop_all();
-          return;
-        }
+    if let Some(entity) = entities.get(&entity_id) {
+      //
+    }
+  });
 
-        if let Some(sounds) = chatsounds.get(msg) {
-          let mut rng = rand::thread_rng();
+  // TODO use 1 thread and a channel
+  thread::spawn("chatsounds handle message", move || {
+    if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+      if sentence.to_lowercase() == "sh" {
+        chatsounds.stop_all();
+        return;
+      }
 
-          if let Some(sound) = sounds.choose(&mut rng).cloned() {
-            chatsounds.play(&sound);
-          }
+      if let Some(sounds) = chatsounds.get(sentence) {
+        let mut rng = rand::thread_rng();
+
+        if let Some(sound) = sounds.choose(&mut rng).cloned() {
+          chatsounds.play(&sound);
         }
       }
+    }
+  });
+}
+
+fn handle_chat_message<S: Into<String>>(full_msg: S) {
+  // &]SpiralP: &faaa
+  let full_msg = full_msg.into();
+
+  // nickname_resolver_handle_message(full_msg.to_string());
+
+  // find colon from the left
+  if let Some(pos) = full_msg.find(": ") {
+    // &]SpiralP
+    let left = &full_msg[..pos]; // left without colon
+                                 // &faaa
+    let right = &full_msg[(pos + 2)..]; // right without colon
+
+    if right.find(':').is_some() {
+      // no colons in any chatsound, and we could have parsed nick wrong
+      return;
+    }
+
+    // TODO title is [ ] before nick, team is < > before nick, also there are rank symbols?
+    // &f┬ &f♂&6 Goodly: &fhi
+
+    let full_nick = left.to_string();
+    let colorless_text: String = remove_color(right.to_string()).trim().to_string();
+
+    // lookup entity id from nick_name by using TabList
+    let found_entity_id = TABLIST.with(|tablist| {
+      let tablist = tablist.borrow();
+
+      // try exact match
+      tablist
+        .iter()
+        .find_map(|(id, entry)| {
+          if entry.nick_name == full_nick {
+            Some(*id)
+          } else {
+            None
+          }
+        })
+        .or_else(|| {
+          // match from the right, choose the one with most chars matched
+          let mut id_positions: Vec<(usize, usize)> = tablist
+            .iter()
+            .filter_map(|(id, entry)| {
+              // full_nick &g[&x&7___&g] &m___&0 Cjnator38
+              // real_nick &g&m___&0 Cjnator38
+
+              // remove color at beginning
+              let (full_nick_color, full_nick) =
+                if full_nick.len() >= 2 && full_nick.starts_with('&') {
+                  full_nick.split_at(2)
+                } else {
+                  ("", full_nick.as_str())
+                };
+              let (real_nick_color, real_nick) =
+                if entry.nick_name.len() >= 2 && entry.nick_name.starts_with('&') {
+                  entry.nick_name.split_at(2)
+                } else {
+                  ("", entry.nick_name.as_str())
+                };
+
+              full_nick
+                .rfind(&real_nick)
+                .filter(|_| full_nick_color == real_nick_color)
+                .map(|pos| (*id, pos))
+            })
+            .collect();
+
+          id_positions.sort_unstable_by(|(id1, pos1), (id2, pos2)| {
+            pos1
+              .partial_cmp(pos2)
+              .unwrap()
+              .then_with(|| id1.partial_cmp(&id2).unwrap())
+          });
+
+          id_positions.first().map(|(id, _pos)| *id)
+        })
     });
+
+    if let Some(entity_id) = found_entity_id {
+      print(format!("FOUND {} {}", entity_id, full_nick));
+
+      play_chatsound(entity_id, colorless_text);
+    } else {
+      print(format!("not found {}", full_nick));
+    }
   }
 }
 
@@ -48,6 +146,10 @@ extern "C" fn on_chat_received(
   full_msg: *const classicube_sys::String,
   msg_type: c_int,
 ) {
+  if SIMULATING.with(|simulating| simulating.get()) {
+    return;
+  }
+
   let msg_type: MsgType = msg_type as MsgType;
 
   if msg_type != MsgType_MSG_TYPE_NORMAL {
@@ -64,8 +166,6 @@ extern "C" fn on_chat_received(
   CHAT_LAST.with(|maybe_chat_last| {
     let mut maybe_chat_last = maybe_chat_last.borrow_mut();
 
-    // TODO remove all &1 colors, then first find colon
-
     if !full_msg.starts_with("> &f") {
       *maybe_chat_last = Some(full_msg.clone());
     } else if let Some(chat_last) = &*maybe_chat_last {
@@ -81,10 +181,6 @@ extern "C" fn on_chat_received(
   });
 
   handle_chat_message(&full_msg);
-}
-
-thread_local! {
-  static SIMULATING: Cell<bool> = Cell::new(false);
 }
 
 extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {

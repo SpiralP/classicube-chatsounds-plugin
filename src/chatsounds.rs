@@ -33,6 +33,8 @@ pub fn load() {
     let volume = option::get(VOLUME_SETTING_NAME)
       .and_then(|s| s.parse().ok())
       .unwrap_or(1.0);
+
+    // TODO 0 volume doesn't event play anything
     chatsounds.set_volume(VOLUME_NORMAL * volume);
 
     *CHATSOUNDS.lock() = Some(chatsounds);
