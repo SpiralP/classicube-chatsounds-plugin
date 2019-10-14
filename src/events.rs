@@ -1,32 +1,59 @@
 use crate::{
-  chat::CHAT, chatsounds::CHATSOUNDS, entities::ENTITIES, helpers::remove_color, printer::print,
-  tablist::TABLIST, thread,
+  chat::CHAT,
+  chatsounds::CHATSOUNDS,
+  entities::{ENTITIES, ENTITY_SELF_ID},
+  helpers::remove_color,
+  printer::print,
+  tablist::TABLIST,
+  thread,
 };
+use chatsounds::SpatialSink;
 use classicube_sys::{
   ChatEvents, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat, Event_RegisterInput,
   Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInput, Event_UnregisterInt, InputEvents,
   Key_, MsgType, MsgType_MSG_TYPE_NORMAL,
 };
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use rand::seq::SliceRandom;
 use std::{
   cell::{Cell, RefCell},
   os::raw::{c_int, c_void},
   ptr,
+  sync::Arc,
 };
 
 thread_local! {
   pub static SIMULATING: Cell<bool> = Cell::new(false);
 }
 
+// TODO use Set for easier deletion
+lazy_static! {
+  pub static ref ENTITY_EMITTERS: Mutex<Vec<EntityEmitter>> = Mutex::new(Vec::new());
+}
+
 fn play_chatsound(entity_id: usize, sentence: String) {
   // TODO need the main thread tick to update positions
 
-  ENTITIES.with(|entities| {
+  let (emitter_pos, self_stuff) = ENTITIES.with(|entities| {
     let entities = entities.borrow();
 
-    if let Some(entity) = entities.get(&entity_id) {
-      //
-    }
+    (
+      if let Some(entity) = entities.get(&entity_id) {
+        Some(entity.get_pos())
+      } else {
+        None
+      },
+      if let Some(entity) = entities.get(&ENTITY_SELF_ID) {
+        Some((entity.get_pos(), entity.get_rot()[1]))
+      } else {
+        print(format!(
+          "couldn't get entity.get_pos/rot() {}",
+          ENTITY_SELF_ID
+        ));
+        None
+      },
+    )
   });
 
   // TODO use 1 thread and a channel
@@ -41,11 +68,134 @@ fn play_chatsound(entity_id: usize, sentence: String) {
         let mut rng = rand::thread_rng();
 
         if let Some(sound) = sounds.choose(&mut rng).cloned() {
-          chatsounds.play(&sound);
+          if entity_id == ENTITY_SELF_ID {
+            // if self entity, play 2d sound
+            chatsounds.play(&sound);
+          } else if let Some(emitter_pos) = emitter_pos {
+            if let Some((self_pos, self_rot)) = self_stuff {
+              let (emitter_pos, left_ear_pos, right_ear_pos) =
+                EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
+
+              let sink = chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
+
+              ENTITY_EMITTERS
+                .lock()
+                .push(EntityEmitter::new(entity_id, sink));
+            }
+          }
         }
       }
     }
   });
+}
+
+pub struct EntityEmitter {
+  entity_id: usize,
+  sink: Arc<SpatialSink>,
+}
+
+impl EntityEmitter {
+  pub fn new(entity_id: usize, sink: Arc<SpatialSink>) -> Self {
+    Self { entity_id, sink }
+  }
+
+  /// returns true if still alive
+  pub fn update(&mut self) -> bool {
+    let (emitter_pos, self_stuff) = ENTITIES.with(|entities| {
+      let entities = entities.borrow();
+
+      (
+        if let Some(entity) = entities.get(&self.entity_id) {
+          Some(entity.get_pos())
+        } else {
+          None
+        },
+        if let Some(entity) = entities.get(&ENTITY_SELF_ID) {
+          Some((entity.get_pos(), entity.get_rot()[1]))
+        } else {
+          None
+        },
+      )
+    });
+
+    if let Some(emitter_pos) = emitter_pos {
+      if let Some((self_pos, self_rot)) = self_stuff {
+        let (emitter_pos, left_ear_pos, right_ear_pos) =
+          EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
+
+        self.update_sink(emitter_pos, left_ear_pos, right_ear_pos);
+      }
+    }
+
+    // TODO weak arc reference, return false on drop
+    true
+  }
+
+  pub fn coords_to_sink_positions(
+    emitter_pos: [f32; 3],
+    self_pos: [f32; 3],
+    self_rot: f32,
+  ) -> ([f32; 3], [f32; 3], [f32; 3]) {
+    use std::f32::consts::PI;
+
+    let (left_sin, left_cos) = {
+      let ratio = self_rot / 360.0;
+      let rot = ratio * (2.0 * PI) - PI;
+      rot.sin_cos()
+    };
+
+    let (right_sin, right_cos) = {
+      let ratio = self_rot / 360.0;
+      let rot = ratio * (2.0 * PI);
+      rot.sin_cos()
+    };
+
+    const HEAD_SIZE: f32 = 2.0; // I don't know why but <= 1.0 is not working
+
+    // z is negative going forward
+
+    // print(format!(
+    //   "{:?} {:?}",
+    //   &[left_cos, left_sin],
+    //   &[right_cos, right_sin]
+    // ));
+
+    let mut left_ear_pos = self_pos;
+    left_ear_pos[0] += HEAD_SIZE * left_cos; // x
+    left_ear_pos[2] += HEAD_SIZE * left_sin; // z
+
+    let mut right_ear_pos = self_pos;
+    right_ear_pos[0] += HEAD_SIZE * right_cos; // x
+    right_ear_pos[2] += HEAD_SIZE * right_sin; // z
+
+    (emitter_pos, left_ear_pos, right_ear_pos)
+  }
+
+  pub fn update_sink(
+    &self,
+    emitter_pos: [f32; 3],
+    left_ear_pos: [f32; 3],
+    right_ear_pos: [f32; 3],
+  ) {
+    const DIST_FIX: f32 = 0.3;
+
+    // print(format!("{:?}", emitter_pos));
+    // print(format!("{:?} {:?}", left_ear_pos, right_ear_pos));
+
+    self
+      .sink
+      .set_left_ear_position(mul_3(left_ear_pos, DIST_FIX));
+
+    self
+      .sink
+      .set_right_ear_position(mul_3(right_ear_pos, DIST_FIX));
+
+    self.sink.set_emitter_position(mul_3(emitter_pos, DIST_FIX));
+  }
+}
+
+fn mul_3(a: [f32; 3], n: f32) -> [f32; 3] {
+  [a[0] * n, a[1] * n, a[2] * n]
 }
 
 fn handle_chat_message<S: Into<String>>(full_msg: S) {
@@ -94,27 +244,27 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
               // full_nick &g[&x&7___&g] &m___&0 Cjnator38
               // real_nick &g&m___&0 Cjnator38
 
-              // remove color at beginning
-              let (full_nick_color, full_nick) =
-                if full_nick.len() >= 2 && full_nick.starts_with('&') {
-                  full_nick.split_at(2)
-                } else {
-                  ("", full_nick.as_str())
-                };
-              let (real_nick_color, real_nick) =
-                if entry.nick_name.len() >= 2 && entry.nick_name.starts_with('&') {
-                  entry.nick_name.split_at(2)
-                } else {
-                  ("", entry.nick_name.as_str())
-                };
+              // &7<Map>&r&r[&f/dl&r] Empy: &fthis milk chocolate fuck has
 
-              full_nick
-                .rfind(&real_nick)
-                .filter(|_| full_nick_color == real_nick_color)
-                .map(|pos| (*id, pos))
+              // remove color at beginning
+              let full_nick = if full_nick.len() >= 2 && full_nick.starts_with('&') {
+                let (_color, full_nick) = full_nick.split_at(2);
+                full_nick
+              } else {
+                full_nick.as_str()
+              };
+              let real_nick = if entry.nick_name.len() >= 2 && entry.nick_name.starts_with('&') {
+                let (_color, real_nick) = entry.nick_name.split_at(2);
+                real_nick
+              } else {
+                entry.nick_name.as_str()
+              };
+
+              full_nick.rfind(&real_nick).map(|pos| (*id, pos))
             })
             .collect();
 
+          // choose smallest position, or "most chars matched"
           id_positions.sort_unstable_by(|(id1, pos1), (id2, pos2)| {
             pos1
               .partial_cmp(pos2)
@@ -127,7 +277,7 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
     });
 
     if let Some(entity_id) = found_entity_id {
-      print(format!("FOUND {} {}", entity_id, full_nick));
+      // print(format!("FOUND {} {}", entity_id, full_nick));
 
       play_chatsound(entity_id, colorless_text);
     } else {

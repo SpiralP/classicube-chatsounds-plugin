@@ -1,4 +1,6 @@
-use crate::{command, entities, events, option, printer::PRINTER, tablist};
+use crate::{
+  command, entities, events, events::ENTITY_EMITTERS, option, printer::PRINTER, tablist,
+};
 use classicube_sys::{ScheduledTask, Server, String_AppendConst};
 use detour::static_detour;
 use std::{cell::Cell, ffi::CString};
@@ -18,7 +20,11 @@ fn tick_detour(task: *mut ScheduledTask) {
   }
 
   PRINTER.lock().flush();
-  // TODO SPATIAL_SOUNDS.lock().update();
+
+  let mut emitters = ENTITY_EMITTERS.lock();
+  for emitter in emitters.iter_mut() {
+    emitter.update();
+  }
 }
 
 pub fn load() {
