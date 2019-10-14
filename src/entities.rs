@@ -1,4 +1,3 @@
-use crate::printer::print;
 use classicube_sys::{Entities, EntityEvents, Event_RegisterInt, Event_UnregisterInt};
 use std::{
   cell::RefCell,
@@ -46,7 +45,7 @@ impl Entity {
 extern "C" fn on_entity_added(_obj: *mut c_void, id: c_int) {
   let id = id as usize;
 
-  print(format!("add ent {}", id));
+  // print(format!("add ent {}", id));
 
   ENTITIES.with(|entities| {
     let mut entities = entities.borrow_mut();
@@ -58,7 +57,7 @@ extern "C" fn on_entity_added(_obj: *mut c_void, id: c_int) {
 extern "C" fn on_entity_removed(_obj: *mut c_void, id: c_int) {
   let id = id as usize;
 
-  print(format!("removed ent {}", id));
+  // print(format!("removed ent {}", id));
 
   ENTITIES.with(|entities| {
     let mut entities = entities.borrow_mut();

@@ -55,8 +55,9 @@ impl Chat {
     self.hint_pos = 0;
 
     let input = self.get_text();
+    let input = input.trim().to_string();
 
-    if !input.trim().is_empty() {
+    if !input.is_empty() && input.len() >= 2 {
       if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
         let results: Vec<_> = chatsounds
           .search(&input)

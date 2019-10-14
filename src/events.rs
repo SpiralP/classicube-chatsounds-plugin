@@ -20,7 +20,7 @@ use std::{
   cell::{Cell, RefCell},
   os::raw::{c_int, c_void},
   ptr,
-  sync::Arc,
+  sync::{Arc, Weak},
 };
 
 thread_local! {
@@ -29,7 +29,7 @@ thread_local! {
 
 // TODO use Set for easier deletion
 lazy_static! {
-  pub static ref ENTITY_EMITTERS: Mutex<Vec<EntityEmitter>> = Mutex::new(Vec::new());
+  pub static ref ENTITY_EMITTERS: Mutex<Vec<Option<EntityEmitter>>> = Mutex::new(Vec::new());
 }
 
 fn play_chatsound(entity_id: usize, sentence: String) {
@@ -80,7 +80,7 @@ fn play_chatsound(entity_id: usize, sentence: String) {
 
               ENTITY_EMITTERS
                 .lock()
-                .push(EntityEmitter::new(entity_id, sink));
+                .push(Some(EntityEmitter::new(entity_id, sink)));
             }
           }
         }
@@ -91,12 +91,15 @@ fn play_chatsound(entity_id: usize, sentence: String) {
 
 pub struct EntityEmitter {
   entity_id: usize,
-  sink: Arc<SpatialSink>,
+  sink: Weak<SpatialSink>,
 }
 
 impl EntityEmitter {
   pub fn new(entity_id: usize, sink: Arc<SpatialSink>) -> Self {
-    Self { entity_id, sink }
+    Self {
+      entity_id,
+      sink: Arc::downgrade(&sink),
+    }
   }
 
   /// returns true if still alive
@@ -123,11 +126,10 @@ impl EntityEmitter {
         let (emitter_pos, left_ear_pos, right_ear_pos) =
           EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-        self.update_sink(emitter_pos, left_ear_pos, right_ear_pos);
+        return self.update_sink(emitter_pos, left_ear_pos, right_ear_pos);
       }
     }
 
-    // TODO weak arc reference, return false on drop
     true
   }
 
@@ -150,7 +152,7 @@ impl EntityEmitter {
       rot.sin_cos()
     };
 
-    const HEAD_SIZE: f32 = 2.0; // I don't know why but <= 1.0 is not working
+    const HEAD_SIZE: f32 = 0.2;
 
     // z is negative going forward
 
@@ -176,21 +178,24 @@ impl EntityEmitter {
     emitter_pos: [f32; 3],
     left_ear_pos: [f32; 3],
     right_ear_pos: [f32; 3],
-  ) {
-    const DIST_FIX: f32 = 0.3;
+  ) -> bool {
+    if let Some(sink) = self.sink.upgrade() {
+      // const DIST_FIX: f32 = 0.3;
 
-    // print(format!("{:?}", emitter_pos));
-    // print(format!("{:?} {:?}", left_ear_pos, right_ear_pos));
+      // print(format!("{:?}", emitter_pos));
+      // print(format!("{:?} {:?}", left_ear_pos, right_ear_pos));
 
-    self
-      .sink
-      .set_left_ear_position(mul_3(left_ear_pos, DIST_FIX));
+      // TODO LOL CHANGING LEFT TO RIGHT RIGHT TO LEFT
+      sink.set_left_ear_position(mul_3(right_ear_pos, 0.2));
 
-    self
-      .sink
-      .set_right_ear_position(mul_3(right_ear_pos, DIST_FIX));
+      sink.set_right_ear_position(mul_3(left_ear_pos, 0.2));
 
-    self.sink.set_emitter_position(mul_3(emitter_pos, DIST_FIX));
+      sink.set_emitter_position(mul_3(emitter_pos, 0.2));
+
+      true
+    } else {
+      false
+    }
   }
 }
 
@@ -280,8 +285,8 @@ fn handle_chat_message<S: Into<String>>(full_msg: S) {
       // print(format!("FOUND {} {}", entity_id, full_nick));
 
       play_chatsound(entity_id, colorless_text);
-    } else {
-      print(format!("not found {}", full_nick));
+      // } else {
+      // print(format!("not found {}", full_nick));
     }
   }
 }

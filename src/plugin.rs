@@ -22,8 +22,14 @@ fn tick_detour(task: *mut ScheduledTask) {
   PRINTER.lock().flush();
 
   let mut emitters = ENTITY_EMITTERS.lock();
-  for emitter in emitters.iter_mut() {
-    emitter.update();
+
+  for maybe_emitter in emitters.iter_mut() {
+    if let Some(emitter) = maybe_emitter {
+      if !emitter.update() {
+        // TODO don't do it this way :(
+        *maybe_emitter = None;
+      }
+    }
   }
 }
 
