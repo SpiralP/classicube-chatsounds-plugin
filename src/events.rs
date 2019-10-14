@@ -29,7 +29,7 @@ thread_local! {
 
 // TODO use Set for easier deletion
 lazy_static! {
-  pub static ref ENTITY_EMITTERS: Mutex<Vec<Option<EntityEmitter>>> = Mutex::new(Vec::new());
+  pub static ref ENTITY_EMITTERS: Mutex<Vec<EntityEmitter>> = Mutex::new(Vec::new());
 }
 
 fn play_chatsound(entity_id: usize, sentence: String) {
@@ -76,11 +76,16 @@ fn play_chatsound(entity_id: usize, sentence: String) {
               let (emitter_pos, left_ear_pos, right_ear_pos) =
                 EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-              let sink = chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
+              // if sound.can_be_3d() {
+              //   let sink =
+              //     chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
 
-              ENTITY_EMITTERS
-                .lock()
-                .push(Some(EntityEmitter::new(entity_id, sink)));
+              //   ENTITY_EMITTERS
+              //     .lock()
+              //     .push(EntityEmitter::new(entity_id, sink));
+              // } else {
+              //   unimplemented!()
+              // }
             }
           }
         }
