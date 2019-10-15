@@ -63,7 +63,7 @@ const SOURCES: &[Source] = &[
     "Metastruct/garrysmod-chatsounds",
     "sound/chatsounds/autoadd",
   ),
-  Source::Api("PAC3-Server/chatsounds", "sounds/chatsouds"),
+  Source::Api("PAC3-Server/chatsounds", "sounds/chatsounds"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "csgo"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "css"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "ep1"),
