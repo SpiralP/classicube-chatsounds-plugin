@@ -23,7 +23,7 @@ fn tick_detour(task: *mut ScheduledTask) {
 
   let mut emitters = ENTITY_EMITTERS.lock();
 
-  let mut to_remove = Vec::new();
+  let mut to_remove = Vec::with_capacity(emitters.len());
   for (i, emitter) in emitters.iter_mut().enumerate() {
     if !emitter.update() {
       to_remove.push(i);

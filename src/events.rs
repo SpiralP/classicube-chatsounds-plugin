@@ -77,12 +77,11 @@ fn play_chatsound(entity_id: usize, sentence: String) {
                 EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
               // if sound.can_be_3d() {
-              //   let sink =
-              //     chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
+              let sink = chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
 
-              //   ENTITY_EMITTERS
-              //     .lock()
-              //     .push(EntityEmitter::new(entity_id, sink));
+              ENTITY_EMITTERS
+                .lock()
+                .push(EntityEmitter::new(entity_id, sink));
               // } else {
               //   unimplemented!()
               // }
