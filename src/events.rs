@@ -342,19 +342,28 @@ extern "C" fn on_chat_received(
   handle_chat_message(&full_msg);
 }
 
-extern "C" fn on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
+#[inline]
+fn on_key_down(key: Key_, repeat: bool) {
   if SIMULATING.with(|simulating| simulating.get()) {
     return;
   }
 
   CHAT.with(|chat| {
-    let key: Key_ = key as Key_;
-    let repeat = repeat != 0;
-
     let mut chat = chat.borrow_mut();
     chat.handle_key_down(key, repeat);
   });
 }
+
+#[cfg(target_os = "macos")]
+extern "C" fn c_on_key_down(_obj: *mut c_void, key: c_int, repeat: bool) {
+  on_key_down(key as Key_, repeat)
+}
+
+#[cfg(not(target_os = "macos"))]
+extern "C" fn c_on_key_down(_obj: *mut c_void, key: c_int, repeat: u8) {
+  on_key_down(key as Key_, repeat != 0)
+}
+
 extern "C" fn on_key_up(_obj: *mut c_void, key: c_int) {
   if SIMULATING.with(|simulating| simulating.get()) {
     return;
@@ -416,7 +425,7 @@ pub fn load() {
       Some(on_chat_received),
     );
 
-    Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    Event_RegisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(c_on_key_down));
     Event_RegisterInt(&mut InputEvents.Up, ptr::null_mut(), Some(on_key_up));
     Event_RegisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
@@ -430,7 +439,7 @@ pub fn unload() {
       Some(on_chat_received),
     );
 
-    Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(on_key_down));
+    Event_UnregisterInput(&mut InputEvents.Down, ptr::null_mut(), Some(c_on_key_down));
     Event_UnregisterInt(&mut InputEvents.Up, ptr::null_mut(), Some(on_key_up));
     Event_UnregisterInt(&mut InputEvents.Press, ptr::null_mut(), Some(on_key_press));
   }
