@@ -101,7 +101,7 @@ jobs:
         command: build
         args: --release
 
-    - run: rename target/release/rust_classicube_chatsounds_plugin.dll chatsounds_windows_amd64.dll
+    - run: rename target\release\rust_classicube_chatsounds_plugin.dll chatsounds_windows_amd64.dll
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
