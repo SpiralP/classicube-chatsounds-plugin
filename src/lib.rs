@@ -2,6 +2,7 @@ mod chat;
 mod chatsounds;
 mod command;
 mod entities;
+mod entity_emitter;
 mod events;
 mod helpers;
 mod option;

@@ -15,6 +15,8 @@ chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git" }
 classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 crossbeam-channel = "0.3.9"
 detour = "0.7.1"
+futures-preview = { version = "0.3.0-alpha.19", features = ["async-await"] }
 lazy_static = "1.4.0"
 parking_lot = "0.9.0"
 rand = "0.7.2"
+tokio = "0.2.0-alpha.6"

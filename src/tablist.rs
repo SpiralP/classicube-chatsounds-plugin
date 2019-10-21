@@ -135,4 +135,9 @@ pub fn unload() {
       Some(on_tablist_removed),
     );
   }
+
+  TABLIST.with(|tablist| {
+    let mut tablist = tablist.borrow_mut();
+    tablist.clear();
+  });
 }

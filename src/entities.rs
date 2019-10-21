@@ -2,7 +2,6 @@ use classicube_sys::{Entities, EntityEvents, Event_RegisterInt, Event_Unregister
 use std::{
   cell::RefCell,
   collections::HashMap,
-  ffi::CStr,
   os::raw::{c_int, c_void},
   ptr,
 };
@@ -35,11 +34,11 @@ impl Entity {
     [entity.RotX, entity.RotY, entity.RotZ]
   }
 
-  pub fn get_real_name(&self) -> String {
-    let entity = self.get_entity();
-    let c_str = unsafe { CStr::from_ptr(&entity.DisplayNameRaw as *const i8) };
-    c_str.to_string_lossy().to_string()
-  }
+  // pub fn get_real_name(&self) -> String {
+  //   let entity = self.get_entity();
+  //   let c_str = unsafe { CStr::from_ptr(&entity.DisplayNameRaw as *const i8) };
+  //   c_str.to_string_lossy().to_string()
+  // }
 }
 
 extern "C" fn on_entity_added(_obj: *mut c_void, id: c_int) {
@@ -78,14 +77,14 @@ pub fn load() {
       ptr::null_mut(),
       Some(on_entity_removed),
     );
-
-    ENTITIES.with(|entities| {
-      let mut entities = entities.borrow_mut();
-
-      // add self which always exists?
-      entities.insert(ENTITY_SELF_ID, Entity { id: ENTITY_SELF_ID });
-    });
   }
+
+  ENTITIES.with(|entities| {
+    let mut entities = entities.borrow_mut();
+
+    // add self which always exists?
+    entities.insert(ENTITY_SELF_ID, Entity { id: ENTITY_SELF_ID });
+  });
 }
 
 pub fn unload() {
@@ -100,10 +99,10 @@ pub fn unload() {
       ptr::null_mut(),
       Some(on_entity_removed),
     );
-
-    ENTITIES.with(|entities| {
-      let mut entities = entities.borrow_mut();
-      entities.clear();
-    });
   }
+
+  ENTITIES.with(|entities| {
+    let mut entities = entities.borrow_mut();
+    entities.clear();
+  });
 }

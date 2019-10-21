@@ -1,42 +1,9 @@
-use crate::{
-  command, entities, events, events::ENTITY_EMITTERS, option, printer::PRINTER, tablist,
-};
-use classicube_sys::{ScheduledTask, Server, String_AppendConst};
-use detour::static_detour;
+use crate::{command, entities, events, option, tablist};
+use classicube_sys::{Server, String_AppendConst};
 use std::{cell::Cell, ffi::CString};
 
 thread_local! {
   static APP_NAME: Cell<Option<CString>> = Cell::new(None);
-}
-
-static_detour! {
-  static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
-}
-
-fn tick_detour(task: *mut ScheduledTask) {
-  unsafe {
-    // call original Server.Tick
-    TICK_DETOUR.call(task);
-  }
-
-  PRINTER.lock().flush();
-
-  let mut emitters = ENTITY_EMITTERS.lock();
-
-  let mut to_remove = Vec::with_capacity(emitters.len());
-  for (i, emitter) in emitters.iter_mut().enumerate() {
-    if !emitter.update() {
-      to_remove.push(i);
-    }
-  }
-
-  if !to_remove.is_empty() {
-    for i in (0..emitters.len()).rev() {
-      if to_remove.contains(&i) {
-        emitters.remove(i);
-      }
-    }
-  }
 }
 
 pub fn load() {
@@ -45,13 +12,6 @@ pub fn load() {
   option::load();
   entities::load();
   tablist::load();
-
-  unsafe {
-    if let Some(tick_original) = Server.Tick {
-      TICK_DETOUR.initialize(tick_original, tick_detour).unwrap();
-      TICK_DETOUR.enable().unwrap();
-    }
-  }
 
   crate::chatsounds::load();
 
@@ -72,10 +32,6 @@ pub fn unload() {
   option::unload();
   entities::unload();
   tablist::unload();
-
-  unsafe {
-    let _ = TICK_DETOUR.disable();
-  }
 
   crate::chatsounds::unload();
 

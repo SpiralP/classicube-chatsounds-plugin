@@ -10,21 +10,17 @@ use classicube_sys::{
   Key__KEY_LSHIFT, Key__KEY_RCTRL, Key__KEY_RIGHT, Key__KEY_RSHIFT, Key__KEY_SLASH, Key__KEY_TAB,
   Key__KEY_UP,
 };
-use std::{cell::RefCell, collections::HashMap, os::raw::c_int};
-
-thread_local! {
-  pub static CHAT: RefCell<Chat> = RefCell::new(Chat::new());
-}
+use std::collections::HashMap;
 
 pub struct Chat {
   open: bool,
-  text: Vec<u8>,
+  text: Vec<char>,
   cursor_pos: usize,
   dedupe_open_key: bool,
 
-  history: Vec<Vec<u8>>,
+  history: Vec<Vec<char>>,
   history_pos: usize,
-  history_restore: Option<Vec<u8>>,
+  history_restore: Option<Vec<char>>,
 
   search: Option<String>,
   hints: Option<Vec<(usize, String)>>,
@@ -66,7 +62,7 @@ impl Chat {
             // max chat input length
             sentence.len() <= 192
           })
-          .map(|(pos, sentence)| (*pos, sentence.to_string()))
+          .map(|(pos, sentence)| (*pos, (*sentence).to_string()))
           .collect();
 
         if !results.is_empty() {
@@ -135,7 +131,7 @@ impl Chat {
   }
 
   pub fn get_text(&self) -> String {
-    String::from_utf8_lossy(&self.text).to_string()
+    self.text.iter().collect()
   }
 
   pub fn set_text<T: Into<String>>(&mut self, text: T) {
@@ -146,15 +142,15 @@ impl Chat {
       simulate_key(Key__KEY_BACKSPACE);
     }
 
-    for &chr in text.as_bytes() {
+    for chr in text.chars() {
       simulate_char(chr);
     }
 
-    self.text = text.as_bytes().to_vec();
+    self.text = text.chars().collect();
     self.cursor_pos = self.text.len();
   }
 
-  fn handle_char_insert(&mut self, chr: u8) {
+  fn handle_char_insert(&mut self, chr: char) {
     if self.cursor_pos > self.text.len() {
       print(format!("panic! {} > {}", self.cursor_pos, self.text.len()));
       return;
@@ -174,11 +170,11 @@ impl Chat {
             if let Some(&chr) = self.text.get(self.cursor_pos - 1) {
               self.cursor_pos -= 1;
 
-              if chr == b' ' && found_non_space {
+              if chr == ' ' && found_non_space {
                 break;
               }
 
-              if !found_non_space && chr != b' ' {
+              if !found_non_space && chr != ' ' {
                 found_non_space = true;
               }
             } else {
@@ -197,11 +193,11 @@ impl Chat {
         loop {
           if self.text.len() > self.cursor_pos {
             if let Some(&chr) = self.text.get(self.cursor_pos) {
-              if chr != b' ' && found_space {
+              if chr != ' ' && found_space {
                 break;
               }
 
-              if !found_space && chr == b' ' {
+              if !found_space && chr == ' ' {
                 found_space = true;
               }
 
@@ -224,11 +220,11 @@ impl Chat {
         loop {
           if self.cursor_pos > 0 {
             if let Some(&chr) = self.text.get(self.cursor_pos - 1) {
-              if chr == b' ' && found_non_space {
+              if chr == ' ' && found_non_space {
                 break;
               }
 
-              if !found_non_space && chr != b' ' {
+              if !found_non_space && chr != ' ' {
                 found_non_space = true;
               }
 
@@ -343,7 +339,7 @@ impl Chat {
         self.hint_pos = 0;
 
         if key == Key__KEY_SLASH {
-          self.handle_char_insert(b'/');
+          self.handle_char_insert('/');
         }
 
         // special case for non-abc key binds
@@ -425,14 +421,14 @@ impl Chat {
     self.handle_held_keys(key, false);
   }
 
-  pub fn handle_key_press(&mut self, key: c_int) {
+  pub fn handle_key_press(&mut self, key: char) {
     if self.open {
       if self.dedupe_open_key {
         self.dedupe_open_key = false;
         return;
       }
 
-      self.handle_char_insert(key as u8);
+      self.handle_char_insert(key);
 
       self.update_hints();
     }

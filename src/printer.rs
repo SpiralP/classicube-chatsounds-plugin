@@ -1,101 +1,56 @@
-use crate::events::SIMULATING;
-use classicube_sys::{
-  Chat_AddOf, MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2, MsgType_MSG_TYPE_NORMAL, OwnedString,
-};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crate::events::{chat_add, chat_add_of};
+use classicube_sys::{MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::{
-  os::raw::c_int,
-  time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-const DEFAULT_STATUS_DURATION: Duration = Duration::from_secs(10);
+const STATUS_DURATION: Duration = Duration::from_secs(8);
 
 lazy_static! {
   pub static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
 }
 
-enum Message {
-  Normal(String),
-  Status(String),
-  StatusForever(String),
-}
-
 pub struct Printer {
-  sender: Sender<Message>,
-  receiver: Receiver<Message>,
   status_decay: Option<Instant>,
 }
+
 impl Printer {
   pub fn new() -> Self {
-    let (sender, receiver) = unbounded();
-
-    Self {
-      sender,
-      receiver,
-      status_decay: None,
-    }
+    Self { status_decay: None }
   }
 
   pub fn print<T: Into<String>>(&self, s: T) {
-    self.sender.send(Message::Normal(s.into())).unwrap();
+    Self::chat_add(s);
   }
 
-  pub fn status<T: Into<String>>(&self, s: T) {
-    self.sender.send(Message::Status(s.into())).unwrap();
-  }
-
-  pub fn status_forever<T: Into<String>>(&self, s: T) {
-    self.sender.send(Message::StatusForever(s.into())).unwrap();
-  }
-
-  pub fn chat_add_of<S: Into<Vec<u8>>>(s: S, msg_type: MsgType) {
-    let owned_string = OwnedString::new(s);
-
-    SIMULATING.with(|simulating| {
-      simulating.set(true);
-    });
-
-    unsafe {
-      Chat_AddOf(owned_string.as_cc_string(), msg_type as c_int);
-    }
-
-    SIMULATING.with(|simulating| {
-      simulating.set(false);
-    });
-  }
-
-  pub fn chat_add<S: Into<Vec<u8>>>(s: S) {
-    Printer::chat_add_of(s, MsgType_MSG_TYPE_NORMAL)
-  }
-
-  pub fn flush(&mut self) {
+  pub fn status<T: Into<String>>(&mut self, s: T) {
     let now = Instant::now();
+    Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+    self.status_decay = Some(now + STATUS_DURATION);
+  }
 
-    for message in self.receiver.try_iter() {
-      match message {
-        Message::Normal(s) => {
-          Printer::chat_add(s);
-        }
+  pub fn status_forever<T: Into<String>>(&mut self, s: T) {
+    Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+    self.status_decay = None;
+  }
 
-        Message::Status(s) => {
-          Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
-          self.status_decay = Some(now + DEFAULT_STATUS_DURATION);
-        }
+  pub fn chat_add_of<S: Into<String>>(s: S, msg_type: MsgType) {
+    chat_add_of(s, msg_type)
+  }
 
-        Message::StatusForever(s) => {
-          Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
-          self.status_decay = None;
-        }
-      }
-    }
+  pub fn chat_add<S: Into<String>>(s: S) {
+    chat_add(s)
+  }
 
-    if let Some(status_decay) = self.status_decay {
-      if now >= status_decay {
-        Self::chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
-      }
-    }
+  pub fn tick(&mut self) {
+    // let now = Instant::now();
+
+    // if let Some(status_decay) = self.status_decay {
+    //   if now >= status_decay {
+    //     Self::chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
+    //     self.status_decay = None;
+    //   }
+    // }
   }
 }
 
