@@ -30,6 +30,7 @@ jobs:
         args: --release
 
     - run: mv target/release/librust_classicube_chatsounds_plugin.so target/release/chatsounds_linux_amd64.so
+      if: startsWith(github.ref, 'refs/tags/')
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
@@ -66,6 +67,7 @@ jobs:
         args: --release
 
     - run: mv target/release/librust_classicube_chatsounds_plugin.dylib target/release/chatsounds_macos_amd64.dylib
+      if: startsWith(github.ref, 'refs/tags/')
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
@@ -102,6 +104,7 @@ jobs:
         args: --release
 
     - run: rename target\release\rust_classicube_chatsounds_plugin.dll chatsounds_windows_amd64.dll
+      if: startsWith(github.ref, 'refs/tags/')
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
