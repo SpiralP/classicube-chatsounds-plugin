@@ -4,6 +4,7 @@ mod outgoing;
 pub use self::{incoming::*, outgoing::*};
 use classicube_sys::{Key_, MsgType};
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use futures::prelude::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::cell::RefCell;
@@ -39,6 +40,14 @@ lazy_static! {
   pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
 }
 
+pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(f: F) {
+  TOKIO_RUNTIME.with(|ref_cell| {
+    let mut maybe_rt = ref_cell.borrow_mut();
+    let rt = maybe_rt.as_mut().expect("spawn_future: no runtime?");
+    rt.spawn(f);
+  });
+}
+
 pub fn load() {
   let mut outgoing_sender = OUTGOING_SENDER.lock();
 
@@ -50,7 +59,7 @@ pub fn load() {
   });
 
   TOKIO_RUNTIME.with(|ref_cell| {
-    let rt = Runtime::new().unwrap();
+    let rt = Runtime::new().expect("tokio Runtime::new()");
 
     ref_cell.replace(Some(rt));
   });

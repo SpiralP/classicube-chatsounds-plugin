@@ -9,8 +9,13 @@ use super::IncomingEvent;
 
 pub fn handle_incoming_event(event: IncomingEvent) {
   match event {
-    IncomingEvent::Tick => handle_tick(),
-    IncomingEvent::ChatReceived(message, msg_type) => handle_chat_received(message, msg_type),
+    IncomingEvent::Tick => {
+      handle_tick();
+    }
+
+    IncomingEvent::ChatReceived(message, msg_type) => {
+      handle_chat_received(message, msg_type);
+    }
 
     IncomingEvent::InputPress(key) => {
       CHAT.with(move |chat| {

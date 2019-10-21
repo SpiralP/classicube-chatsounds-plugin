@@ -49,7 +49,7 @@ fn handle_outgoing_event(event: OutgoingEvent) {
       let owned_string = OwnedString::new(msg);
 
       unsafe {
-        Chat_AddOf(owned_string.as_cc_string(), msg_type);
+        Chat_AddOf(owned_string.as_cc_string(), msg_type as _);
       }
     }
 
@@ -58,11 +58,11 @@ fn handle_outgoing_event(event: OutgoingEvent) {
     },
 
     OutgoingEvent::InputDown(key, repeat) => unsafe {
-      Event_RaiseInput(&mut InputEvents.Down, key, repeat);
+      Event_RaiseInput(&mut InputEvents.Down, key as _, repeat);
     },
 
     OutgoingEvent::InputUp(key) => unsafe {
-      Event_RaiseInt(&mut InputEvents.Up, key);
+      Event_RaiseInt(&mut InputEvents.Up, key as _);
     },
   }
 }

@@ -56,7 +56,7 @@ extern "C" fn on_chat_received(
 }
 
 #[inline]
-fn on_input_down(key: Key_, repeat: bool) {
+fn on_input_down(key: c_int, repeat: bool) {
   if SIMULATING.with(|simulating| simulating.get()) {
     return;
   }
