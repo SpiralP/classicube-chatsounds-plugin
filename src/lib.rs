@@ -1,3 +1,4 @@
+mod app_name;
 mod chat;
 mod chatsounds;
 mod command;
@@ -9,7 +10,6 @@ mod option;
 mod plugin;
 mod printer;
 mod tablist;
-mod thread;
 
 use classicube_sys::IGameComponent;
 use lazy_static::lazy_static;
@@ -24,6 +24,9 @@ extern "C" fn init() {
   let mut loaded = LOADED.lock();
 
   if !*loaded {
+    color_backtrace::install_with_settings(
+      color_backtrace::Settings::new().verbosity(color_backtrace::Verbosity::Full),
+    );
     plugin::load();
   }
 

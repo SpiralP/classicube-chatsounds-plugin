@@ -46,7 +46,7 @@ impl Chat {
     }
   }
 
-  fn update_hints(&mut self) {
+  async fn update_hints(&mut self) {
     self.hints = None;
     self.hint_pos = 0;
 
@@ -54,7 +54,7 @@ impl Chat {
     let input = input.trim().to_string();
 
     if !input.is_empty() && input.len() >= 2 {
-      if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+      if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
         let results: Vec<_> = chatsounds
           .search(&input)
           .iter()
@@ -161,7 +161,7 @@ impl Chat {
   }
 
   #[allow(clippy::cognitive_complexity)]
-  fn handle_key(&mut self, key: Key_) {
+  async fn handle_key(&mut self, key: Key_) {
     if key == Key__KEY_LEFT {
       if self.is_ctrl_held() {
         let mut found_non_space = false;
@@ -242,13 +242,13 @@ impl Chat {
         self.cursor_pos -= 1;
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_DELETE {
       if self.cursor_pos < self.text.len() && self.text.get(self.cursor_pos).is_some() {
         self.text.remove(self.cursor_pos);
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_HOME {
       self.cursor_pos = 0;
     } else if key == Key__KEY_END {
@@ -269,7 +269,7 @@ impl Chat {
         self.cursor_pos = self.text.len();
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_DOWN {
       if self.is_ctrl_held() {
         self.cursor_pos = self.text.len();
@@ -293,7 +293,7 @@ impl Chat {
       }
       self.cursor_pos = self.text.len();
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_TAB {
       if let Some(hints) = &self.hints {
         let hints_len = hints.len();
@@ -325,7 +325,7 @@ impl Chat {
     }
   }
 
-  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
+  pub async fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
       let chat_key = CHAT_KEY.with(|chat_key| chat_key.get());
 
@@ -377,7 +377,7 @@ impl Chat {
     } // if !repeat
 
     if self.open {
-      self.handle_key(key);
+      self.handle_key(key).await;
     }
   }
 
@@ -417,11 +417,11 @@ impl Chat {
         .unwrap_or(false)
   }
 
-  pub fn handle_key_up(&mut self, key: Key_) {
+  pub async fn handle_key_up(&mut self, key: Key_) {
     self.handle_held_keys(key, false);
   }
 
-  pub fn handle_key_press(&mut self, key: char) {
+  pub async fn handle_key_press(&mut self, key: char) {
     if self.open {
       if self.dedupe_open_key {
         self.dedupe_open_key = false;
@@ -430,7 +430,7 @@ impl Chat {
 
       self.handle_char_insert(key);
 
-      self.update_hints();
+      self.update_hints().await;
     }
   }
 }

@@ -1,3 +1,6 @@
+mod random;
+
+use self::random::rand_index;
 use crate::{
   command::VOLUME_SETTING_NAME,
   entities::{ENTITIES, ENTITY_SELF_ID},
@@ -6,13 +9,11 @@ use crate::{
   option,
   printer::{print, status},
   tablist::TABLIST,
-  thread,
 };
+use async_std::{fs, path::Path};
 use chatsounds::Chatsounds;
+use futures::lock::Mutex;
 use lazy_static::lazy_static;
-use parking_lot::Mutex;
-use rand::seq::SliceRandom;
-use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
 
@@ -20,20 +21,21 @@ lazy_static! {
   pub static ref CHATSOUNDS: Mutex<Option<Chatsounds>> = Mutex::new(None);
 }
 
-pub fn load() {
+pub async fn load() {
   print(format!(
     "Loading Chatsounds v{}...",
     env!("CARGO_PKG_VERSION")
   ));
 
   if fs::metadata("plugins")
+    .await
     .map(|meta| meta.is_dir())
     .unwrap_or(false)
   {
     let path = Path::new("plugins/chatsounds");
-    fs::create_dir_all(path).unwrap();
+    fs::create_dir_all(path).await.unwrap();
 
-    let mut chatsounds = Chatsounds::new(path);
+    let mut chatsounds = Chatsounds::new(path).await;
 
     let volume = option::get(VOLUME_SETTING_NAME)
       .and_then(|s| s.parse().ok())
@@ -42,20 +44,18 @@ pub fn load() {
     // TODO 0 volume doesn't event play anything
     chatsounds.set_volume(VOLUME_NORMAL * volume);
 
-    *CHATSOUNDS.lock() = Some(chatsounds);
+    *CHATSOUNDS.lock().await = Some(chatsounds);
   } else {
     panic!("UH OH");
   }
 
-  thread::spawn("chatsounds source loader", move || {
-    status("chatsounds fetching sources...");
-    load_sources();
-    status("done fetching sources");
-  });
+  status("chatsounds fetching sources...");
+  load_sources().await;
+  status("done fetching sources");
 }
 
-pub fn unload() {
-  *CHATSOUNDS.lock() = None;
+pub async fn unload() {
+  *CHATSOUNDS.lock().await = None;
 }
 
 enum Source {
@@ -80,10 +80,10 @@ const SOURCES: &[Source] = &[
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "tf2"),
 ];
 
-fn load_sources() {
+async fn load_sources() {
   let sources_len = SOURCES.len();
   for (i, source) in SOURCES.iter().enumerate() {
-    if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
+    if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
       let (repo, repo_path) = match source {
         Source::Api(repo, repo_path) => (repo, repo_path),
         Source::Msgpack(repo, repo_path) => (repo, repo_path),
@@ -98,14 +98,14 @@ fn load_sources() {
       ));
 
       match source {
-        Source::Api(repo, repo_path) => chatsounds.load_github_api(repo, repo_path),
-        Source::Msgpack(repo, repo_path) => chatsounds.load_github_msgpack(repo, repo_path),
+        Source::Api(repo, repo_path) => chatsounds.load_github_api(repo, repo_path).await,
+        Source::Msgpack(repo, repo_path) => chatsounds.load_github_msgpack(repo, repo_path).await,
       }
     }
   }
 }
 
-pub fn play_chatsound(entity_id: usize, sentence: String) {
+pub async fn play_chatsound(entity_id: usize, sentence: String) {
   // TODO need the main thread tick to update positions
 
   let (emitter_pos, self_stuff) = ENTITIES.with(|entities| {
@@ -129,44 +129,41 @@ pub fn play_chatsound(entity_id: usize, sentence: String) {
     )
   });
 
-  // TODO use 1 thread and a channel
-  thread::spawn("chatsounds handle message", move || {
-    if let Some(chatsounds) = CHATSOUNDS.lock().as_mut() {
-      if sentence.to_lowercase() == "sh" {
-        chatsounds.stop_all();
-        return;
-      }
+  if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
+    if sentence.to_lowercase() == "sh" {
+      chatsounds.stop_all();
+      return;
+    }
 
-      if let Some(sounds) = chatsounds.get(sentence) {
-        let mut rng = rand::thread_rng();
+    if let Some(sounds) = chatsounds.get(sentence) {
+      if let Some(sound) = rand_index(sounds, entity_id).cloned() {
+        if entity_id == ENTITY_SELF_ID {
+          // if self entity, play 2d sound
+          chatsounds.play(&sound).await;
+        } else if let Some(emitter_pos) = emitter_pos {
+          if let Some((self_pos, self_rot)) = self_stuff {
+            let (emitter_pos, left_ear_pos, right_ear_pos) =
+              EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-        if let Some(sound) = sounds.choose(&mut rng).cloned() {
-          if entity_id == ENTITY_SELF_ID {
-            // if self entity, play 2d sound
-            chatsounds.play(&sound);
-          } else if let Some(emitter_pos) = emitter_pos {
-            if let Some((self_pos, self_rot)) = self_stuff {
-              let (emitter_pos, left_ear_pos, right_ear_pos) =
-                EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
+            // if sound.can_be_3d() {
+            let sink = chatsounds
+              .play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos)
+              .await;
 
-              // if sound.can_be_3d() {
-              let sink = chatsounds.play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos);
-
-              ENTITY_EMITTERS
-                .lock()
-                .push(EntityEmitter::new(entity_id, sink));
-              // } else {
-              //   unimplemented!()
-              // }
-            }
+            ENTITY_EMITTERS
+              .lock()
+              .push(EntityEmitter::new(entity_id, sink));
+            // } else {
+            //   unimplemented!()
+            // }
           }
         }
       }
     }
-  });
+  }
 }
 
-pub fn handle_chat_message<S: Into<String>>(full_msg: S) {
+pub async fn handle_chat_message<S: Into<String>>(full_msg: S) {
   // &]SpiralP: &faaa
   let full_msg = full_msg.into();
 
@@ -247,7 +244,7 @@ pub fn handle_chat_message<S: Into<String>>(full_msg: S) {
     if let Some(entity_id) = found_entity_id {
       // print(format!("FOUND {} {}", entity_id, full_nick));
 
-      play_chatsound(entity_id, colorless_text);
+      play_chatsound(entity_id, colorless_text).await;
       // } else {
       // print(format!("not found {}", full_nick));
     }

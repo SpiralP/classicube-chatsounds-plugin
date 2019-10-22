@@ -48,6 +48,14 @@ pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(f: F) {
   });
 }
 
+pub fn block_future<F: Future<Output = ()>>(f: F) {
+  TOKIO_RUNTIME.with(|ref_cell| {
+    let mut maybe_rt = ref_cell.borrow_mut();
+    let rt = maybe_rt.as_mut().expect("block_on: no runtime?");
+    rt.block_on(f);
+  });
+}
+
 pub fn load() {
   let mut outgoing_sender = OUTGOING_SENDER.lock();
 
