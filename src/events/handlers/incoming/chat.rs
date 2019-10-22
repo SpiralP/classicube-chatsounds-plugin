@@ -2,14 +2,10 @@ use crate::{chat::Chat, chatsounds};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
 use futures::lock::Mutex;
 use lazy_static::lazy_static;
-use std::cell::RefCell;
-
-thread_local! {
-  pub static CHAT: RefCell<Chat> = RefCell::new(Chat::new());
-}
 
 lazy_static! {
   static ref CHAT_LAST: Mutex<Option<String>> = Mutex::new(None);
+  pub static ref CHAT: Mutex<Chat> = Mutex::new(Chat::new());
 }
 
 pub async fn handle_chat_received(mut full_msg: String, msg_type: MsgType) {
@@ -17,7 +13,6 @@ pub async fn handle_chat_received(mut full_msg: String, msg_type: MsgType) {
     return;
   }
 
-  // TODO async_std::Mutex??
   let mut maybe_chat_last = CHAT_LAST.lock().await;
 
   if !full_msg.starts_with("> &f") {

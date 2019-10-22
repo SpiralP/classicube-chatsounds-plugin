@@ -71,6 +71,8 @@ pub fn load() {
 
     ref_cell.replace(Some(rt));
   });
+
+  outgoing::load();
 }
 
 pub fn unload() {

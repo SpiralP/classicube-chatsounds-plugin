@@ -34,15 +34,16 @@ impl Printer {
     self.status_decay = None;
   }
 
-  pub fn chat_add_of<S: Into<String>>(s: S, msg_type: MsgType) {
-    chat_add_of(s, msg_type)
-  }
-
   pub fn chat_add<S: Into<String>>(s: S) {
     chat_add(s)
   }
 
+  pub fn chat_add_of<S: Into<String>>(s: S, msg_type: MsgType) {
+    chat_add_of(s, msg_type)
+  }
+
   pub fn tick(&mut self) {
+    // TODO
     // let now = Instant::now();
 
     // if let Some(status_decay) = self.status_decay {

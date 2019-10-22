@@ -1,6 +1,6 @@
 use crate::{
   chatsounds::CHATSOUNDS,
-  events::{simulate_char, simulate_key},
+  events::{simulate_char, simulate_key, wait_for_main_thread},
   option::{CHAT_KEY, SEND_CHAT_KEY},
   printer::{print, status_forever},
 };
@@ -53,6 +53,7 @@ impl Chat {
     let input = self.get_text();
     let input = input.trim().to_string();
 
+    print(format!("input: {:?}", input));
     if !input.is_empty() && input.len() >= 2 {
       if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
         let results: Vec<_> = chatsounds
@@ -327,7 +328,7 @@ impl Chat {
 
   pub async fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
-      let chat_key = CHAT_KEY.with(|chat_key| chat_key.get());
+      let chat_key = wait_for_main_thread(|| CHAT_KEY.with(|chat_key| chat_key.get())).await;
 
       if !self.open && (chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
         self.open = true;
@@ -351,7 +352,9 @@ impl Chat {
         return;
       }
 
-      let send_chat_key = SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get());
+      let send_chat_key =
+        wait_for_main_thread(|| SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get())).await;
+
       let chat_send_success =
         send_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_KP_ENTER;
 
