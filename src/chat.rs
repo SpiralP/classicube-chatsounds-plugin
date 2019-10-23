@@ -59,11 +59,16 @@ impl Chat {
         let results: Vec<_> = chatsounds
           .search(&input)
           .iter()
-          .filter(|(_pos, sentence)| {
+          .filter_map(|(pos, sentence)| {
             // max chat input length
-            sentence.len() <= 192
+            const MAX_CHAT_INPUT: usize = 192;
+
+            if sentence.len() <= MAX_CHAT_INPUT {
+              Some((*pos, (*sentence).to_string()))
+            } else {
+              None
+            }
           })
-          .map(|(pos, sentence)| (*pos, (*sentence).to_string()))
           .collect();
 
         if !results.is_empty() {
@@ -88,7 +93,7 @@ impl Chat {
       let (pos, hint) = &hints[self.hint_pos];
       let pos = *pos;
 
-      let test_pos = hint.find(&input).unwrap_or(std::usize::MAX);
+      let test_pos = hint.find(&input).unwrap_or(usize::max_value());
       if pos != test_pos {
         print(format!("panic! {} != {}", pos, test_pos));
         return;
@@ -104,11 +109,11 @@ impl Chat {
       let hint_right = &hint[(pos + input_len)..];
 
       let mut colored_hint = input;
-      let input_pos = if !hint_left.is_empty() {
+      let input_pos = if hint_left.is_empty() {
+        0
+      } else {
         colored_hint = format!("&7{}&f{}", hint_left, colored_hint);
         hint_left.len() + 4 // 4 for &7 and &f
-      } else {
-        0
       };
 
       if !hint_right.is_empty() {
@@ -162,6 +167,7 @@ impl Chat {
   }
 
   #[allow(clippy::cognitive_complexity)]
+  #[allow(clippy::too_many_lines)]
   async fn handle_key(&mut self, key: Key_) {
     if key == Key__KEY_LEFT {
       if self.is_ctrl_held() {

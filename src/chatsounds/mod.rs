@@ -85,8 +85,7 @@ async fn load_sources() {
   for (i, source) in SOURCES.iter().enumerate() {
     if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
       let (repo, repo_path) = match source {
-        Source::Api(repo, repo_path) => (repo, repo_path),
-        Source::Msgpack(repo, repo_path) => (repo, repo_path),
+        Source::Api(repo, repo_path) | Source::Msgpack(repo, repo_path) => (repo, repo_path),
       };
 
       status(format!(
@@ -152,7 +151,7 @@ pub async fn play_chatsound(entity_id: usize, sentence: String) {
 
             ENTITY_EMITTERS
               .lock()
-              .push(EntityEmitter::new(entity_id, sink));
+              .push(EntityEmitter::new(entity_id, &sink));
             // } else {
             //   unimplemented!()
             // }

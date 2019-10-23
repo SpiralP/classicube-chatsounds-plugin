@@ -19,7 +19,7 @@ impl Printer {
     Self { status_decay: None }
   }
 
-  pub fn print<T: Into<String>>(&self, s: T) {
+  pub fn print<T: Into<String>>(s: T) {
     Self::chat_add(s);
   }
 
@@ -52,12 +52,13 @@ impl Printer {
     //     self.status_decay = None;
     //   }
     // }
+
+    todo!()
   }
 }
 
 pub fn print<T: Into<String>>(s: T) {
-  // TODO check if main thread somehow and print directly
-  PRINTER.lock().print(s)
+  Printer::print(s)
 }
 
 pub fn status<T: Into<String>>(s: T) {

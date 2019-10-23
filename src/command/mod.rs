@@ -2,7 +2,7 @@ use crate::{
   chatsounds::{CHATSOUNDS, VOLUME_NORMAL},
   events::block_future,
   option,
-  printer::Printer,
+  printer::print,
 };
 use classicube_sys::{Commands_Register, OwnedChatCommand};
 use std::{cell::RefCell, convert::TryInto, os::raw::c_int};
@@ -36,7 +36,7 @@ async fn command_callback(args: Vec<String>) {
     ["volume"] => {
       if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
         let current_volume = chatsounds.volume() / VOLUME_NORMAL;
-        Printer::chat_add(format!(
+        print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
         ));
@@ -47,7 +47,7 @@ async fn command_callback(args: Vec<String>) {
       let volume_maybe: Result<f32, _> = volume.parse();
       match volume_maybe {
         Ok(volume) => {
-          Printer::chat_add(format!("&eSetting volume to {}", volume));
+          print(format!("&eSetting volume to {}", volume));
 
           if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
             chatsounds.set_volume(VOLUME_NORMAL * volume);
@@ -55,7 +55,7 @@ async fn command_callback(args: Vec<String>) {
           option::set(VOLUME_SETTING_NAME, format!("{}", volume));
         }
         Err(e) => {
-          Printer::chat_add(format!("&c{}", e));
+          print(format!("&c{}", e));
         }
       }
     }
@@ -69,11 +69,11 @@ async fn command_callback(args: Vec<String>) {
     _ => {
       if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
         let current_volume = chatsounds.volume() / VOLUME_NORMAL;
-        Printer::chat_add(format!(
+        print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
         ));
-        Printer::chat_add(SH_COMMAND_HELP);
+        print(SH_COMMAND_HELP);
       }
     }
   }

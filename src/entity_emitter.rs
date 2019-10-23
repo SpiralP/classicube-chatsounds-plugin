@@ -14,7 +14,7 @@ pub struct EntityEmitter {
 }
 
 impl EntityEmitter {
-  pub fn new(entity_id: usize, sink: Arc<SpatialSink>) -> Self {
+  pub fn new(entity_id: usize, sink: &Arc<SpatialSink>) -> Self {
     Self {
       entity_id,
       sink: Arc::downgrade(&sink),
