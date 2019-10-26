@@ -1,6 +1,12 @@
-use super::OutgoingEvent;
-use crate::events::handlers::outgoing::new_outgoing_event;
+use crate::modules::event_handler::{OutgoingEvent, OUTGOING_SENDER};
 use classicube_sys::{Key_, MsgType};
+
+pub fn new_outgoing_event(event: OutgoingEvent) {
+  let mut outgoing_sender = OUTGOING_SENDER.lock();
+  if let Some(sender) = outgoing_sender.as_mut() {
+    sender.send(event).unwrap();
+  }
+}
 
 pub fn chat_add_of<S: Into<String>>(text: S, msg_type: MsgType) {
   new_outgoing_event(OutgoingEvent::ChatAddOf(text.into(), msg_type));

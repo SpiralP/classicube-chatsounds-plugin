@@ -1,7 +1,9 @@
 use crate::{
-  chatsounds::CHATSOUNDS,
-  events::{simulate_char, simulate_key, wait_for_main_thread},
-  option::{CHAT_KEY, SEND_CHAT_KEY},
+  modules::{
+    chatsounds::ChatsoundsModule,
+    event_handler::{simulate_char, simulate_key},
+    option::OptionModule,
+  },
   printer::{print, status_forever},
 };
 use classicube_sys::{
@@ -10,7 +12,7 @@ use classicube_sys::{
   Key__KEY_LSHIFT, Key__KEY_RCTRL, Key__KEY_RIGHT, Key__KEY_RSHIFT, Key__KEY_SLASH, Key__KEY_TAB,
   Key__KEY_UP,
 };
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub struct Chat {
   open: bool,
@@ -27,10 +29,16 @@ pub struct Chat {
   hint_pos: usize,
 
   held_keys: HashMap<Key_, bool>,
+
+  option_module: Rc<RefCell<OptionModule>>,
+  chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
 }
 
 impl Chat {
-  pub fn new() -> Self {
+  pub fn new(
+    option_module: Rc<RefCell<OptionModule>>,
+    chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
+  ) -> Self {
     Self {
       text: Vec::new(),
       open: false,
@@ -43,10 +51,13 @@ impl Chat {
       hints: None,
       hint_pos: 0,
       held_keys: HashMap::new(),
+
+      option_module,
+      chatsounds_module,
     }
   }
 
-  async fn update_hints(&mut self) {
+  fn update_hints(&mut self) {
     self.hints = None;
     self.hint_pos = 0;
 
@@ -55,26 +66,28 @@ impl Chat {
 
     print(format!("input: {:?}", input));
     if !input.is_empty() && input.len() >= 2 {
-      if let Some(chatsounds) = CHATSOUNDS.lock().await.as_mut() {
-        let results: Vec<_> = chatsounds
-          .search(&input)
-          .iter()
-          .filter_map(|(pos, sentence)| {
-            // max chat input length
-            const MAX_CHAT_INPUT: usize = 192;
+      let results: Vec<_> = self
+        .chatsounds_module
+        .borrow()
+        .chatsounds
+        .lock()
+        .search(&input)
+        .iter()
+        .filter_map(|(pos, sentence)| {
+          // max chat input length
+          const MAX_CHAT_INPUT: usize = 192;
 
-            if sentence.len() <= MAX_CHAT_INPUT {
-              Some((*pos, (*sentence).to_string()))
-            } else {
-              None
-            }
-          })
-          .collect();
+          if sentence.len() <= MAX_CHAT_INPUT {
+            Some((*pos, (*sentence).to_string()))
+          } else {
+            None
+          }
+        })
+        .collect();
 
-        if !results.is_empty() {
-          self.search = Some(input);
-          self.hints = Some(results);
-        }
+      if !results.is_empty() {
+        self.search = Some(input);
+        self.hints = Some(results);
       }
     }
 
@@ -168,7 +181,7 @@ impl Chat {
 
   #[allow(clippy::cognitive_complexity)]
   #[allow(clippy::too_many_lines)]
-  async fn handle_key(&mut self, key: Key_) {
+  fn handle_key(&mut self, key: Key_) {
     if key == Key__KEY_LEFT {
       if self.is_ctrl_held() {
         let mut found_non_space = false;
@@ -249,13 +262,13 @@ impl Chat {
         self.cursor_pos -= 1;
       }
 
-      self.update_hints().await;
+      self.update_hints();
     } else if key == Key__KEY_DELETE {
       if self.cursor_pos < self.text.len() && self.text.get(self.cursor_pos).is_some() {
         self.text.remove(self.cursor_pos);
       }
 
-      self.update_hints().await;
+      self.update_hints();
     } else if key == Key__KEY_HOME {
       self.cursor_pos = 0;
     } else if key == Key__KEY_END {
@@ -276,7 +289,7 @@ impl Chat {
         self.cursor_pos = self.text.len();
       }
 
-      self.update_hints().await;
+      self.update_hints();
     } else if key == Key__KEY_DOWN {
       if self.is_ctrl_held() {
         self.cursor_pos = self.text.len();
@@ -300,7 +313,7 @@ impl Chat {
       }
       self.cursor_pos = self.text.len();
 
-      self.update_hints().await;
+      self.update_hints();
     } else if key == Key__KEY_TAB {
       if let Some(hints) = &self.hints {
         let hints_len = hints.len();
@@ -332,11 +345,11 @@ impl Chat {
     }
   }
 
-  pub async fn handle_key_down(&mut self, key: Key_, repeat: bool) {
+  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
-      let chat_key = wait_for_main_thread(|| CHAT_KEY.with(|chat_key| chat_key.get())).await;
+      let open_chat_key = self.option_module.borrow().open_chat_key;
 
-      if !self.open && (chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
+      if !self.open && (open_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
         self.open = true;
         self.text.clear();
         self.cursor_pos = 0;
@@ -358,8 +371,7 @@ impl Chat {
         return;
       }
 
-      let send_chat_key =
-        wait_for_main_thread(|| SEND_CHAT_KEY.with(|send_chat_key| send_chat_key.get())).await;
+      let send_chat_key = self.option_module.borrow().send_chat_key;
 
       let chat_send_success =
         send_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_KP_ENTER;
@@ -386,7 +398,7 @@ impl Chat {
     } // if !repeat
 
     if self.open {
-      self.handle_key(key).await;
+      self.handle_key(key);
     }
   }
 
@@ -426,11 +438,11 @@ impl Chat {
         .unwrap_or(false)
   }
 
-  pub async fn handle_key_up(&mut self, key: Key_) {
+  pub fn handle_key_up(&mut self, key: Key_) {
     self.handle_held_keys(key, false);
   }
 
-  pub async fn handle_key_press(&mut self, key: char) {
+  pub fn handle_key_press(&mut self, key: char) {
     if self.open {
       if self.dedupe_open_key {
         self.dedupe_open_key = false;
@@ -439,7 +451,7 @@ impl Chat {
 
       self.handle_char_insert(key);
 
-      self.update_hints().await;
+      self.update_hints();
     }
   }
 }

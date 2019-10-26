@@ -1,4 +1,4 @@
-use crate::events::{chat_add, chat_add_of};
+use crate::modules::event_handler::{chat_add, chat_add_of};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;

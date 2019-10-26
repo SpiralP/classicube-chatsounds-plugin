@@ -1,44 +1,48 @@
-use crate::entities::{ENTITIES, ENTITY_SELF_ID};
+use crate::modules::{entities::ENTITY_SELF_ID, EntitiesModule};
 use chatsounds::SpatialSink;
-use lazy_static::lazy_static;
-use parking_lot::Mutex;
-use std::sync::{Arc, Weak};
-
-lazy_static! {
-  pub static ref ENTITY_EMITTERS: Mutex<Vec<EntityEmitter>> = Mutex::new(Vec::new());
-}
+use std::{
+  cell::RefCell,
+  rc::Rc,
+  sync::{Arc, Weak},
+};
 
 pub struct EntityEmitter {
   entity_id: usize,
   sink: Weak<SpatialSink>,
+  entities_module: Rc<RefCell<EntitiesModule>>,
 }
 
 impl EntityEmitter {
-  pub fn new(entity_id: usize, sink: &Arc<SpatialSink>) -> Self {
+  pub fn new(
+    entity_id: usize,
+    sink: &Arc<SpatialSink>,
+    entities_module: Rc<RefCell<EntitiesModule>>,
+  ) -> Self {
     Self {
       entity_id,
       sink: Arc::downgrade(&sink),
+      entities_module,
     }
   }
 
   /// returns true if still alive
   pub fn update(&mut self) -> bool {
-    let (emitter_pos, self_stuff) = ENTITIES.with(|entities| {
-      let entities = entities.borrow();
+    let (emitter_pos, self_stuff) = {
+      let entities_module = self.entities_module.borrow();
 
       (
-        if let Some(entity) = entities.get(&self.entity_id) {
+        if let Some(entity) = entities_module.get(self.entity_id) {
           Some(entity.get_pos())
         } else {
           None
         },
-        if let Some(entity) = entities.get(&ENTITY_SELF_ID) {
+        if let Some(entity) = entities_module.get(ENTITY_SELF_ID) {
           Some((entity.get_pos(), entity.get_rot()[1]))
         } else {
           None
         },
       )
-    });
+    };
 
     if let Some(emitter_pos) = emitter_pos {
       if let Some((self_pos, self_rot)) = self_stuff {
