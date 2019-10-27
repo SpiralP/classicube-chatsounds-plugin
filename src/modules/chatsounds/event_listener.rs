@@ -11,12 +11,13 @@ use crate::{
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
+use futures::lock::Mutex as FutureMutex;
 use parking_lot::Mutex;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub struct ChatsoundsEventListener {
-  chatsounds: Arc<Mutex<Chatsounds>>,
-  entity_emitters: Vec<EntityEmitter>,
+  chatsounds: Arc<FutureMutex<Chatsounds>>,
+  entity_emitters: Arc<Mutex<Vec<EntityEmitter>>>,
   chat_last: Option<String>,
   tab_list_module: Rc<RefCell<TabListModule>>,
   entities_module: Rc<RefCell<EntitiesModule>>,
@@ -26,17 +27,18 @@ impl ChatsoundsEventListener {
   pub fn new(
     tab_list_module: Rc<RefCell<TabListModule>>,
     entities_module: Rc<RefCell<EntitiesModule>>,
-    chatsounds: Arc<Mutex<Chatsounds>>,
+    chatsounds: Arc<FutureMutex<Chatsounds>>,
   ) -> Self {
     Self {
       chatsounds,
-      entity_emitters: Vec::new(),
+      entity_emitters: Arc::new(Mutex::new(Vec::new())),
       chat_last: None,
       tab_list_module,
       entities_module,
     }
   }
 
+  // run this sync so that chat_last comes in order
   fn handle_chat_received(&mut self, mut full_msg: String, msg_type: MsgType) {
     if msg_type != MsgType_MSG_TYPE_NORMAL {
       return;
@@ -87,66 +89,81 @@ impl ChatsoundsEventListener {
       if let Some(entity_id) = found_entity_id {
         // print(format!("FOUND {} {}", entity_id, full_nick));
 
-        FuturesModule::block_future(async {
-          self.play_chatsound(entity_id, colorless_text).await;
+        let entities = self.entities_module.borrow();
+
+        let (emitter_pos, self_stuff) = {
+          (
+            if let Some(entity) = entities.get(entity_id) {
+              Some(entity.get_pos())
+            } else {
+              None
+            },
+            if let Some(entity) = entities.get(ENTITY_SELF_ID) {
+              Some((entity.get_pos(), entity.get_rot()[1]))
+            } else {
+              print(format!(
+                "couldn't get entity.get_pos/rot() {}",
+                ENTITY_SELF_ID
+              ));
+              None
+            },
+          )
+        };
+
+        let chatsounds = self.chatsounds.clone();
+        let entity_emitters = self.entity_emitters.clone();
+
+        // it doesn't matter if these are out of order so we just spawn
+        FuturesModule::spawn_future(async move {
+          play_chatsound(
+            entity_id,
+            colorless_text,
+            emitter_pos,
+            self_stuff,
+            chatsounds,
+            entity_emitters,
+          )
+          .await;
         });
 
         // } else { print(format!("not found {}", full_nick)); }
       }
     }
   }
+}
 
-  pub async fn play_chatsound(&mut self, entity_id: usize, sentence: String) {
-    // TODO need the main thread tick to update positions
+pub async fn play_chatsound(
+  entity_id: usize,
+  sentence: String,
+  emitter_pos: Option<[f32; 3]>,
+  self_stuff: Option<([f32; 3], f32)>,
+  chatsounds: Arc<FutureMutex<Chatsounds>>,
+  entity_emitters: Arc<Mutex<Vec<EntityEmitter>>>,
+) {
+  if sentence.to_lowercase() == "sh" {
+    chatsounds.lock().await.stop_all();
+    entity_emitters.lock().clear();
+    return;
+  }
 
-    // TODO can't use ENTITIES here
-    let (emitter_pos, self_stuff) = {
-      let entities = self.entities_module.borrow();
+  let mut chatsounds = chatsounds.lock().await;
+  if let Some(sounds) = chatsounds.get(sentence) {
+    if let Some(sound) = rand_index(sounds, entity_id).cloned() {
+      if entity_id == ENTITY_SELF_ID {
+        // if self entity, play 2d sound
+        chatsounds.play(&sound).await;
+      } else if let Some(emitter_pos) = emitter_pos {
+        if let Some((self_pos, self_rot)) = self_stuff {
+          let (emitter_pos, left_ear_pos, right_ear_pos) =
+            EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-      (
-        if let Some(entity) = entities.get(entity_id) {
-          Some(entity.get_pos())
-        } else {
-          None
-        },
-        if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-          Some((entity.get_pos(), entity.get_rot()[1]))
-        } else {
-          print(format!(
-            "couldn't get entity.get_pos/rot() {}",
-            ENTITY_SELF_ID
-          ));
-          None
-        },
-      )
-    };
+          let sink = chatsounds
+            .play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos)
+            .await;
 
-    if sentence.to_lowercase() == "sh" {
-      self.chatsounds.lock().stop_all();
-      return;
-    }
-
-    let mut chatsounds = self.chatsounds.lock();
-    if let Some(sounds) = chatsounds.get(sentence) {
-      if let Some(sound) = rand_index(sounds, entity_id).cloned() {
-        if entity_id == ENTITY_SELF_ID {
-          // if self entity, play 2d sound
-          chatsounds.play(&sound).await;
-        } else if let Some(emitter_pos) = emitter_pos {
-          if let Some((self_pos, self_rot)) = self_stuff {
-            let (emitter_pos, left_ear_pos, right_ear_pos) =
-              EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
-
-            let sink = chatsounds
-              .play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos)
-              .await;
-
-            self.entity_emitters.push(EntityEmitter::new(
-              entity_id,
-              &sink,
-              self.entities_module.clone(),
-            ));
-          }
+          entity_emitters
+            .lock()
+            .push(EntityEmitter::new(entity_id, &sink));
         }
       }
     }
@@ -157,22 +174,26 @@ impl IncomingEventListener for ChatsoundsEventListener {
   fn handle_incoming_event(&mut self, event: &IncomingEvent) {
     match event.clone() {
       IncomingEvent::ChatReceived(message, msg_type) => {
-        self.handle_chat_received(message, msg_type);
+        self.handle_chat_received(message, msg_type)
       }
 
       IncomingEvent::Tick => {
-        let mut to_remove = Vec::with_capacity(self.entity_emitters.len());
-        for (i, emitter) in self.entity_emitters.iter_mut().enumerate() {
-          if !emitter.update() {
+        // update positions on emitters
+
+        let mut entity_emitters = self.entity_emitters.lock();
+
+        let mut to_remove = Vec::with_capacity(entity_emitters.len());
+        for (i, emitter) in entity_emitters.iter_mut().enumerate() {
+          if !emitter.update(&self.entities_module) {
             to_remove.push(i);
           }
         }
 
         // TODO can't you just use a for remove_id in ().rev()
         if !to_remove.is_empty() {
-          for i in (0..self.entity_emitters.len()).rev() {
+          for i in (0..entity_emitters.len()).rev() {
             if to_remove.contains(&i) {
-              self.entity_emitters.remove(i);
+              entity_emitters.remove(i);
             }
           }
         }

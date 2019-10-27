@@ -9,26 +9,20 @@ use std::{
 pub struct EntityEmitter {
   entity_id: usize,
   sink: Weak<SpatialSink>,
-  entities_module: Rc<RefCell<EntitiesModule>>,
 }
 
 impl EntityEmitter {
-  pub fn new(
-    entity_id: usize,
-    sink: &Arc<SpatialSink>,
-    entities_module: Rc<RefCell<EntitiesModule>>,
-  ) -> Self {
+  pub fn new(entity_id: usize, sink: &Arc<SpatialSink>) -> Self {
     Self {
       entity_id,
       sink: Arc::downgrade(&sink),
-      entities_module,
     }
   }
 
   /// returns true if still alive
-  pub fn update(&mut self) -> bool {
+  pub fn update(&mut self, entities_module: &Rc<RefCell<EntitiesModule>>) -> bool {
     let (emitter_pos, self_stuff) = {
-      let entities_module = self.entities_module.borrow();
+      let entities_module = entities_module.borrow();
 
       (
         if let Some(entity) = entities_module.get(self.entity_id) {

@@ -2,18 +2,16 @@ mod entity_emitter;
 mod event_listener;
 mod random;
 
-use self::{
-  entity_emitter::EntityEmitter, event_listener::ChatsoundsEventListener, random::rand_index,
-};
+use self::event_listener::ChatsoundsEventListener;
 use crate::{
   modules::{
-    command::VOLUME_SETTING_NAME, entities::ENTITY_SELF_ID, EntitiesModule, EventHandlerModule,
-    FuturesModule, Module, OptionModule, TabListModule,
+    command::VOLUME_SETTING_NAME, EntitiesModule, EventHandlerModule, FuturesModule, Module,
+    OptionModule, TabListModule,
   },
   printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use parking_lot::Mutex;
+use futures::lock::Mutex as FutureMutex;
 use std::{cell::RefCell, fs, path::Path, rc::Rc, sync::Arc};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
@@ -42,13 +40,12 @@ const SOURCES: &[Source] = &[
 
 pub struct ChatsoundsModule {
   // TODO remove pub
-  pub chatsounds: Arc<Mutex<Chatsounds>>,
+  pub chatsounds: Arc<FutureMutex<Chatsounds>>,
 }
 
 impl ChatsoundsModule {
   pub fn new(
     option_module: Rc<RefCell<OptionModule>>,
-    futures_module: Rc<RefCell<FuturesModule>>,
     entities_module: Rc<RefCell<EntitiesModule>>,
     event_handler_module: Rc<RefCell<EventHandlerModule>>,
     tab_list_module: Rc<RefCell<TabListModule>>,
@@ -78,7 +75,7 @@ impl ChatsoundsModule {
       }
     };
 
-    let chatsounds = Arc::new(Mutex::new(chatsounds));
+    let chatsounds = Arc::new(FutureMutex::new(chatsounds));
 
     let chatsounds_event_listener =
       ChatsoundsEventListener::new(tab_list_module, entities_module, chatsounds.clone());
@@ -89,14 +86,14 @@ impl ChatsoundsModule {
     Self { chatsounds }
   }
 
-  async fn load_sources(&mut self) {
+  async fn load_sources(chatsounds: Arc<FutureMutex<Chatsounds>>) {
     let sources_len = SOURCES.len();
     for (i, source) in SOURCES.iter().enumerate() {
       let (repo, repo_path) = match source {
         Source::Api(repo, repo_path) | Source::Msgpack(repo, repo_path) => (repo, repo_path),
       };
 
-      print(format!(
+      status(format!(
         "[{}/{}] fetching {} {}",
         i + 1,
         sources_len,
@@ -104,7 +101,7 @@ impl ChatsoundsModule {
         repo_path
       ));
 
-      let mut chatsounds = self.chatsounds.lock();
+      let mut chatsounds = chatsounds.lock().await;
 
       match source {
         Source::Api(repo, repo_path) => chatsounds.load_github_api(repo, repo_path).await,
@@ -121,13 +118,13 @@ impl Module for ChatsoundsModule {
       env!("CARGO_PKG_VERSION")
     ));
 
-    // TODO
-    FuturesModule::block_future(async {
-      print("chatsounds fetching sources...");
+    let chatsounds = self.chatsounds.clone();
+    FuturesModule::spawn_future(async {
+      status("chatsounds fetching sources...");
 
-      self.load_sources().await;
+      ChatsoundsModule::load_sources(chatsounds).await;
 
-      print("done fetching sources");
+      status("done fetching sources");
     });
   }
 

@@ -21,7 +21,6 @@ pub struct CommandModule {
   owned_command: OwnedChatCommand,
   option_module: Rc<RefCell<OptionModule>>,
   event_handler_module: Rc<RefCell<EventHandlerModule>>,
-  futures_module: Rc<RefCell<FuturesModule>>,
   chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
 }
 
@@ -29,7 +28,6 @@ impl CommandModule {
   pub fn new(
     option_module: Rc<RefCell<OptionModule>>,
     event_handler_module: Rc<RefCell<EventHandlerModule>>,
-    futures_module: Rc<RefCell<FuturesModule>>,
     chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
   ) -> Self {
     let owned_command = OwnedChatCommand::new(
@@ -43,7 +41,6 @@ impl CommandModule {
       owned_command,
       option_module,
       event_handler_module,
-      futures_module,
       chatsounds_module,
     }
   }
@@ -53,8 +50,14 @@ impl CommandModule {
 
     match args.as_slice() {
       ["volume"] => {
-        let current_volume =
-          self.chatsounds_module.borrow().chatsounds.lock().volume() / VOLUME_NORMAL;
+        let current_volume = self
+          .chatsounds_module
+          .borrow()
+          .chatsounds
+          .lock()
+          .await
+          .volume()
+          / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
@@ -72,6 +75,7 @@ impl CommandModule {
               .borrow()
               .chatsounds
               .lock()
+              .await
               .set_volume(VOLUME_NORMAL * volume);
 
             self
@@ -86,12 +90,24 @@ impl CommandModule {
       }
 
       ["sh"] => {
-        self.chatsounds_module.borrow().chatsounds.lock().stop_all();
+        self
+          .chatsounds_module
+          .borrow()
+          .chatsounds
+          .lock()
+          .await
+          .stop_all();
       }
 
       _ => {
-        let current_volume =
-          self.chatsounds_module.borrow().chatsounds.lock().volume() / VOLUME_NORMAL;
+        let current_volume = self
+          .chatsounds_module
+          .borrow()
+          .chatsounds
+          .lock()
+          .await
+          .volume()
+          / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume

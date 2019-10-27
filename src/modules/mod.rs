@@ -8,6 +8,7 @@ pub mod futures;
 pub mod option;
 pub mod tab_list;
 
+use crate::printer::PrinterEventListener;
 use std::{cell::RefCell, rc::Rc};
 
 pub use self::{
@@ -41,17 +42,19 @@ pub fn load() {
     modules.push(option_module.clone());
 
     let event_handler_module = Rc::new(RefCell::new(EventHandlerModule::new()));
+    event_handler_module
+      .borrow_mut()
+      .register_listener(PrinterEventListener {});
     modules.push(event_handler_module.clone());
 
     let app_name_module = Rc::new(RefCell::new(AppNameModule::new()));
     modules.push(app_name_module);
 
     let futures_module = Rc::new(RefCell::new(FuturesModule::new()));
-    modules.push(futures_module.clone());
+    modules.push(futures_module);
 
     let chatsounds_module = Rc::new(RefCell::new(ChatsoundsModule::new(
       option_module.clone(),
-      futures_module.clone(),
       entities_module,
       event_handler_module.clone(),
       tab_list_module,
@@ -61,14 +64,13 @@ pub fn load() {
     let command_module = Rc::new(RefCell::new(CommandModule::new(
       option_module.clone(),
       event_handler_module.clone(),
-      futures_module,
       chatsounds_module.clone(),
     )));
     modules.push(command_module);
 
     let autocomplete_module = Rc::new(RefCell::new(AutocompleteModule::new(
       option_module,
-      chatsounds_module,
+      chatsounds_module.borrow().chatsounds.clone(),
       event_handler_module,
     )));
     modules.push(autocomplete_module);

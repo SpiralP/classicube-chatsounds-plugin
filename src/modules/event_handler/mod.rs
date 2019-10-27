@@ -31,6 +31,8 @@ lazy_static! {
 }
 
 pub trait IncomingEventListener {
+  // TODO maybe a on_registered fn
+
   fn handle_incoming_event(&mut self, event: &IncomingEvent);
 }
 

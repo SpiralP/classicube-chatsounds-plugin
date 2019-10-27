@@ -16,6 +16,8 @@ impl FuturesModule {
   }
 
   pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(f: F) {
+    // TODO store remote_handle in a list, clear() on unload()
+
     let tokio_runtime = TOKIO_RUNTIME.lock();
 
     let rt = tokio_runtime.as_ref().expect("spawn_future: no runtime?");

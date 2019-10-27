@@ -9,18 +9,18 @@ use std::{
 };
 
 pub struct EntitiesModule {
-  entities: Box<HashMap<usize, Entity>>,
+  entities: HashMap<usize, Entity>,
 }
 
 impl EntitiesModule {
   pub fn new() -> Self {
     Self {
-      entities: Box::new(HashMap::new()),
+      entities: HashMap::new(),
     }
   }
 
-  pub fn get(&self, id: usize) -> Option<&Entity> {
-    self.entities.get(&id)
+  pub fn get(&self, id: usize) -> Option<Entity> {
+    self.entities.get(&id).cloned()
   }
 }
 

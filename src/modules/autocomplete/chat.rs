@@ -1,18 +1,19 @@
 use crate::{
   modules::{
-    chatsounds::ChatsoundsModule,
     event_handler::{simulate_char, simulate_key},
     option::OptionModule,
   },
   printer::{print, status_forever},
 };
+use chatsounds::Chatsounds;
 use classicube_sys::{
   Key_, Key__KEY_BACKSPACE, Key__KEY_DELETE, Key__KEY_DOWN, Key__KEY_END, Key__KEY_ENTER,
   Key__KEY_ESCAPE, Key__KEY_HOME, Key__KEY_KP_ENTER, Key__KEY_LCTRL, Key__KEY_LEFT,
   Key__KEY_LSHIFT, Key__KEY_RCTRL, Key__KEY_RIGHT, Key__KEY_RSHIFT, Key__KEY_SLASH, Key__KEY_TAB,
   Key__KEY_UP,
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use futures::lock::Mutex;
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 pub struct Chat {
   open: bool,
@@ -30,15 +31,17 @@ pub struct Chat {
 
   held_keys: HashMap<Key_, bool>,
 
-  option_module: Rc<RefCell<OptionModule>>,
-  chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
+  open_chat_key: Key_,
+  send_chat_key: Key_,
+
+  chatsounds: Arc<Mutex<Chatsounds>>,
 }
 
 impl Chat {
-  pub fn new(
-    option_module: Rc<RefCell<OptionModule>>,
-    chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
-  ) -> Self {
+  pub fn new(option_module: Rc<RefCell<OptionModule>>, chatsounds: Arc<Mutex<Chatsounds>>) -> Self {
+    let open_chat_key = option_module.borrow().open_chat_key.unwrap_or(0 as _);
+    let send_chat_key = option_module.borrow().send_chat_key.unwrap_or(0 as _);
+
     Self {
       text: Vec::new(),
       open: false,
@@ -52,25 +55,24 @@ impl Chat {
       hint_pos: 0,
       held_keys: HashMap::new(),
 
-      option_module,
-      chatsounds_module,
+      open_chat_key,
+      send_chat_key,
+      chatsounds,
     }
   }
 
-  fn update_hints(&mut self) {
+  async fn update_hints(&mut self) {
     self.hints = None;
     self.hint_pos = 0;
 
     let input = self.get_text();
     let input = input.trim().to_string();
 
-    print(format!("input: {:?}", input));
     if !input.is_empty() && input.len() >= 2 {
       let results: Vec<_> = self
-        .chatsounds_module
-        .borrow()
         .chatsounds
         .lock()
+        .await
         .search(&input)
         .iter()
         .filter_map(|(pos, sentence)| {
@@ -181,7 +183,7 @@ impl Chat {
 
   #[allow(clippy::cognitive_complexity)]
   #[allow(clippy::too_many_lines)]
-  fn handle_key(&mut self, key: Key_) {
+  async fn handle_key(&mut self, key: Key_) {
     if key == Key__KEY_LEFT {
       if self.is_ctrl_held() {
         let mut found_non_space = false;
@@ -262,13 +264,13 @@ impl Chat {
         self.cursor_pos -= 1;
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_DELETE {
       if self.cursor_pos < self.text.len() && self.text.get(self.cursor_pos).is_some() {
         self.text.remove(self.cursor_pos);
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_HOME {
       self.cursor_pos = 0;
     } else if key == Key__KEY_END {
@@ -289,7 +291,7 @@ impl Chat {
         self.cursor_pos = self.text.len();
       }
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_DOWN {
       if self.is_ctrl_held() {
         self.cursor_pos = self.text.len();
@@ -313,7 +315,7 @@ impl Chat {
       }
       self.cursor_pos = self.text.len();
 
-      self.update_hints();
+      self.update_hints().await;
     } else if key == Key__KEY_TAB {
       if let Some(hints) = &self.hints {
         let hints_len = hints.len();
@@ -345,11 +347,9 @@ impl Chat {
     }
   }
 
-  pub fn handle_key_down(&mut self, key: Key_, repeat: bool) {
+  pub async fn handle_key_down(&mut self, key: Key_, repeat: bool) {
     if !repeat {
-      let open_chat_key = self.option_module.borrow().open_chat_key;
-
-      if !self.open && (open_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_SLASH) {
+      if !self.open && (key == self.open_chat_key || key == Key__KEY_SLASH) {
         self.open = true;
         self.text.clear();
         self.cursor_pos = 0;
@@ -371,10 +371,7 @@ impl Chat {
         return;
       }
 
-      let send_chat_key = self.option_module.borrow().send_chat_key;
-
-      let chat_send_success =
-        send_chat_key.map(|k| key == k).unwrap_or(false) || key == Key__KEY_KP_ENTER;
+      let chat_send_success = key == self.send_chat_key || key == Key__KEY_KP_ENTER;
 
       if chat_send_success || key == Key__KEY_ESCAPE {
         if chat_send_success {
@@ -398,7 +395,7 @@ impl Chat {
     } // if !repeat
 
     if self.open {
-      self.handle_key(key);
+      self.handle_key(key).await;
     }
   }
 
@@ -438,11 +435,11 @@ impl Chat {
         .unwrap_or(false)
   }
 
-  pub fn handle_key_up(&mut self, key: Key_) {
+  pub async fn handle_key_up(&mut self, key: Key_) {
     self.handle_held_keys(key, false);
   }
 
-  pub fn handle_key_press(&mut self, key: char) {
+  pub async fn handle_key_press(&mut self, key: char) {
     if self.open {
       if self.dedupe_open_key {
         self.dedupe_open_key = false;
@@ -451,7 +448,7 @@ impl Chat {
 
       self.handle_char_insert(key);
 
-      self.update_hints();
+      self.update_hints().await;
     }
   }
 }

@@ -1,5 +1,5 @@
-use crate::modules::event_handler::{chat_add, chat_add_of};
-use classicube_sys::{MsgType, MsgType_MSG_TYPE_CLIENTSTATUS_2};
+use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
+use classicube_sys::MsgType_MSG_TYPE_CLIENTSTATUS_2;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::time::{Duration, Instant};
@@ -20,40 +20,37 @@ impl Printer {
   }
 
   pub fn print<T: Into<String>>(s: T) {
-    Self::chat_add(s);
+    chat_add(s);
   }
 
   pub fn status<T: Into<String>>(&mut self, s: T) {
     let now = Instant::now();
-    Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+    chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
     self.status_decay = Some(now + STATUS_DURATION);
   }
 
   pub fn status_forever<T: Into<String>>(&mut self, s: T) {
-    Self::chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
+    chat_add_of(s, MsgType_MSG_TYPE_CLIENTSTATUS_2);
     self.status_decay = None;
   }
+}
 
-  pub fn chat_add<S: Into<String>>(s: S) {
-    chat_add(s)
-  }
+pub struct PrinterEventListener {}
 
-  pub fn chat_add_of<S: Into<String>>(s: S, msg_type: MsgType) {
-    chat_add_of(s, msg_type)
-  }
+impl IncomingEventListener for PrinterEventListener {
+  fn handle_incoming_event(&mut self, event: &IncomingEvent) {
+    if let IncomingEvent::Tick = event {
+      let mut printer = PRINTER.lock();
 
-  pub fn tick(&mut self) {
-    // TODO
-    // let now = Instant::now();
+      let now = Instant::now();
 
-    // if let Some(status_decay) = self.status_decay {
-    //   if now >= status_decay {
-    //     Self::chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
-    //     self.status_decay = None;
-    //   }
-    // }
-
-    todo!()
+      if let Some(status_decay) = printer.status_decay {
+        if now >= status_decay {
+          chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
+          printer.status_decay = None;
+        }
+      }
+    }
   }
 }
 
