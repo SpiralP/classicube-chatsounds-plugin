@@ -8,22 +8,34 @@ pub mod futures;
 pub mod option;
 pub mod tab_list;
 
-use crate::printer::PrinterEventListener;
-use std::{cell::RefCell, rc::Rc};
-
 pub use self::{
   app_name::AppNameModule, autocomplete::AutocompleteModule, chatsounds::ChatsoundsModule,
   command::CommandModule, entities::EntitiesModule, event_handler::EventHandlerModule,
   futures::FuturesModule, option::OptionModule, tab_list::TabListModule,
 };
+use crate::printer::PrinterEventListener;
+use ::futures::lock::Mutex as FutureMutex;
+use parking_lot::Mutex;
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub trait Module {
   fn load(&mut self);
   fn unload(&mut self);
 }
 
+pub type Shared<T> = Rc<RefCell<T>>;
+pub type ThreadShared<T> = Arc<Mutex<T>>;
+pub type FutureShared<T> = Arc<FutureMutex<T>>;
+
+#[test]
+fn shared_defaults() {
+  let _: Shared<()> = Shared::default();
+  let _: ThreadShared<()> = ThreadShared::default();
+  let _: FutureShared<()> = FutureShared::default();
+}
+
 thread_local! {
-  static MODULES: RefCell<Vec<Rc<RefCell<dyn Module>>>> = RefCell::new(Vec::new());
+  static MODULES: RefCell<Vec<Shared<dyn Module>>> = RefCell::new(Vec::new());
 }
 
 pub fn load() {

@@ -39,7 +39,6 @@ const SOURCES: &[Source] = &[
 ];
 
 pub struct ChatsoundsModule {
-  // TODO remove pub
   pub chatsounds: Arc<FutureMutex<Chatsounds>>,
 }
 
@@ -113,10 +112,7 @@ impl ChatsoundsModule {
 
 impl Module for ChatsoundsModule {
   fn load(&mut self) {
-    print(format!(
-      "Loading Chatsounds v{}...",
-      env!("CARGO_PKG_VERSION")
-    ));
+    print(format!("Loading Chatsounds v{}", env!("CARGO_PKG_VERSION")));
 
     let chatsounds = self.chatsounds.clone();
     FuturesModule::spawn_future(async {

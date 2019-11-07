@@ -5,12 +5,15 @@ use crate::{
   },
   printer::print,
 };
+use chatsounds::Chatsounds;
 use classicube_sys::{Commands_Register, OwnedChatCommand};
+use futures::lock::Mutex as FutureMutex;
 use std::{
   cell::{Cell, RefCell},
   os::raw::c_int,
   rc::Rc,
   slice,
+  sync::Arc,
 };
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
@@ -21,7 +24,7 @@ pub struct CommandModule {
   owned_command: OwnedChatCommand,
   option_module: Rc<RefCell<OptionModule>>,
   event_handler_module: Rc<RefCell<EventHandlerModule>>,
-  chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
+  chatsounds: Arc<FutureMutex<Chatsounds>>,
 }
 
 impl CommandModule {
@@ -37,11 +40,13 @@ impl CommandModule {
       vec![VOLUME_COMMAND_HELP, SH_COMMAND_HELP],
     );
 
+    let chatsounds = chatsounds_module.borrow().chatsounds.clone();
+
     Self {
       owned_command,
       option_module,
       event_handler_module,
-      chatsounds_module,
+      chatsounds,
     }
   }
 
@@ -50,14 +55,7 @@ impl CommandModule {
 
     match args.as_slice() {
       ["volume"] => {
-        let current_volume = self
-          .chatsounds_module
-          .borrow()
-          .chatsounds
-          .lock()
-          .await
-          .volume()
-          / VOLUME_NORMAL;
+        let current_volume = self.chatsounds.lock().await.volume() / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
@@ -71,8 +69,6 @@ impl CommandModule {
             print(format!("&eSetting volume to {}", volume));
 
             self
-              .chatsounds_module
-              .borrow()
               .chatsounds
               .lock()
               .await
@@ -90,24 +86,11 @@ impl CommandModule {
       }
 
       ["sh"] => {
-        self
-          .chatsounds_module
-          .borrow()
-          .chatsounds
-          .lock()
-          .await
-          .stop_all();
+        self.chatsounds.lock().await.stop_all();
       }
 
       _ => {
-        let current_volume = self
-          .chatsounds_module
-          .borrow()
-          .chatsounds
-          .lock()
-          .await
-          .volume()
-          / VOLUME_NORMAL;
+        let current_volume = self.chatsounds.lock().await.volume() / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume

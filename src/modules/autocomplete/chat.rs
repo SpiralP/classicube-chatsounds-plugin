@@ -2,6 +2,7 @@ use crate::{
   modules::{
     event_handler::{simulate_char, simulate_key},
     option::OptionModule,
+    FutureShared, Shared,
   },
   printer::{print, status_forever},
 };
@@ -12,8 +13,7 @@ use classicube_sys::{
   Key__KEY_LSHIFT, Key__KEY_RCTRL, Key__KEY_RIGHT, Key__KEY_RSHIFT, Key__KEY_SLASH, Key__KEY_TAB,
   Key__KEY_UP,
 };
-use futures::lock::Mutex;
-use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use std::collections::HashMap;
 
 pub struct Chat {
   open: bool,
@@ -34,11 +34,11 @@ pub struct Chat {
   open_chat_key: Key_,
   send_chat_key: Key_,
 
-  chatsounds: Arc<Mutex<Chatsounds>>,
+  chatsounds: FutureShared<Chatsounds>,
 }
 
 impl Chat {
-  pub fn new(option_module: Rc<RefCell<OptionModule>>, chatsounds: Arc<Mutex<Chatsounds>>) -> Self {
+  pub fn new(option_module: Shared<OptionModule>, chatsounds: FutureShared<Chatsounds>) -> Self {
     let open_chat_key = option_module.borrow().open_chat_key.unwrap_or(0 as _);
     let send_chat_key = option_module.borrow().send_chat_key.unwrap_or(0 as _);
 

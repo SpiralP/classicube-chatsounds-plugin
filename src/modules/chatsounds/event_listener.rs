@@ -5,29 +5,28 @@ use crate::{
     chatsounds::random::rand_index,
     entities::ENTITY_SELF_ID,
     event_handler::{IncomingEvent, IncomingEventListener},
-    EntitiesModule, FuturesModule, TabListModule,
+    EntitiesModule, FutureShared, FuturesModule, Shared, TabListModule, ThreadShared,
   },
   printer::print,
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
-use futures::lock::Mutex as FutureMutex;
 use parking_lot::Mutex;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 pub struct ChatsoundsEventListener {
-  chatsounds: Arc<FutureMutex<Chatsounds>>,
-  entity_emitters: Arc<Mutex<Vec<EntityEmitter>>>,
+  chatsounds: FutureShared<Chatsounds>,
+  entity_emitters: ThreadShared<Vec<EntityEmitter>>,
   chat_last: Option<String>,
-  tab_list_module: Rc<RefCell<TabListModule>>,
-  entities_module: Rc<RefCell<EntitiesModule>>,
+  tab_list_module: Shared<TabListModule>,
+  entities_module: Shared<EntitiesModule>,
 }
 
 impl ChatsoundsEventListener {
   pub fn new(
-    tab_list_module: Rc<RefCell<TabListModule>>,
-    entities_module: Rc<RefCell<EntitiesModule>>,
-    chatsounds: Arc<FutureMutex<Chatsounds>>,
+    tab_list_module: Shared<TabListModule>,
+    entities_module: Shared<EntitiesModule>,
+    chatsounds: FutureShared<Chatsounds>,
   ) -> Self {
     Self {
       chatsounds,
@@ -137,8 +136,8 @@ pub async fn play_chatsound(
   sentence: String,
   emitter_pos: Option<[f32; 3]>,
   self_stuff: Option<([f32; 3], f32)>,
-  chatsounds: Arc<FutureMutex<Chatsounds>>,
-  entity_emitters: Arc<Mutex<Vec<EntityEmitter>>>,
+  chatsounds: FutureShared<Chatsounds>,
+  entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
   if sentence.to_lowercase() == "sh" {
     chatsounds.lock().await.stop_all();
