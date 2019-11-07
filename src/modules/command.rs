@@ -1,20 +1,13 @@
 use crate::{
   modules::{
-    chatsounds::VOLUME_NORMAL, ChatsoundsModule, EventHandlerModule, FuturesModule, Module,
-    OptionModule,
+    chatsounds::VOLUME_NORMAL, ChatsoundsModule, EventHandlerModule, FutureShared, FuturesModule,
+    Module, OptionModule, SyncShared,
   },
   printer::print,
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{Commands_Register, OwnedChatCommand};
-use futures::lock::Mutex as FutureMutex;
-use std::{
-  cell::{Cell, RefCell},
-  os::raw::c_int,
-  rc::Rc,
-  slice,
-  sync::Arc,
-};
+use std::{cell::Cell, os::raw::c_int, slice};
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
@@ -22,16 +15,16 @@ const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 pub struct CommandModule {
   owned_command: OwnedChatCommand,
-  option_module: Rc<RefCell<OptionModule>>,
-  event_handler_module: Rc<RefCell<EventHandlerModule>>,
-  chatsounds: Arc<FutureMutex<Chatsounds>>,
+  option_module: SyncShared<OptionModule>,
+  event_handler_module: SyncShared<EventHandlerModule>,
+  chatsounds: FutureShared<Chatsounds>,
 }
 
 impl CommandModule {
   pub fn new(
-    option_module: Rc<RefCell<OptionModule>>,
-    event_handler_module: Rc<RefCell<EventHandlerModule>>,
-    chatsounds_module: Rc<RefCell<ChatsoundsModule>>,
+    option_module: SyncShared<OptionModule>,
+    event_handler_module: SyncShared<EventHandlerModule>,
+    mut chatsounds_module: SyncShared<ChatsoundsModule>,
   ) -> Self {
     let owned_command = OwnedChatCommand::new(
       "Chatsounds",
@@ -40,7 +33,7 @@ impl CommandModule {
       vec![VOLUME_COMMAND_HELP, SH_COMMAND_HELP],
     );
 
-    let chatsounds = chatsounds_module.borrow().chatsounds.clone();
+    let chatsounds = chatsounds_module.lock().chatsounds.clone();
 
     Self {
       owned_command,
@@ -76,7 +69,7 @@ impl CommandModule {
 
             self
               .option_module
-              .borrow_mut()
+              .lock()
               .set(VOLUME_SETTING_NAME, format!("{}", volume));
           }
           Err(e) => {
@@ -136,7 +129,7 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::String, arg
         command_module.command_callback(args).await;
       });
 
-      let mut event_handler_module = command_module.event_handler_module.borrow_mut();
+      let mut event_handler_module = command_module.event_handler_module.lock();
       event_handler_module.handle_outgoing_events();
     }
   });

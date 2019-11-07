@@ -2,7 +2,7 @@ use crate::{
   modules::{
     event_handler::{simulate_char, simulate_key},
     option::OptionModule,
-    FutureShared, Shared,
+    FutureShared, SyncShared,
   },
   printer::{print, status_forever},
 };
@@ -38,9 +38,12 @@ pub struct Chat {
 }
 
 impl Chat {
-  pub fn new(option_module: Shared<OptionModule>, chatsounds: FutureShared<Chatsounds>) -> Self {
-    let open_chat_key = option_module.borrow().open_chat_key.unwrap_or(0 as _);
-    let send_chat_key = option_module.borrow().send_chat_key.unwrap_or(0 as _);
+  pub fn new(
+    mut option_module: SyncShared<OptionModule>,
+    chatsounds: FutureShared<Chatsounds>,
+  ) -> Self {
+    let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0 as _);
+    let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0 as _);
 
     Self {
       text: Vec::new(),

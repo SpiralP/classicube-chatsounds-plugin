@@ -1,3 +1,6 @@
+#![feature(coerce_unsized)]
+#![feature(unsize)]
+
 mod helpers;
 mod modules;
 mod printer;

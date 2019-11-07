@@ -5,14 +5,14 @@ mod random;
 use self::event_listener::ChatsoundsEventListener;
 use crate::{
   modules::{
-    command::VOLUME_SETTING_NAME, EntitiesModule, EventHandlerModule, FuturesModule, Module,
-    OptionModule, TabListModule,
+    command::VOLUME_SETTING_NAME,
+    shared::{FutureShared, SyncShared},
+    EntitiesModule, EventHandlerModule, FuturesModule, Module, OptionModule, TabListModule,
   },
   printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use futures::lock::Mutex as FutureMutex;
-use std::{cell::RefCell, fs, path::Path, rc::Rc, sync::Arc};
+use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
 
@@ -39,18 +39,18 @@ const SOURCES: &[Source] = &[
 ];
 
 pub struct ChatsoundsModule {
-  pub chatsounds: Arc<FutureMutex<Chatsounds>>,
+  pub chatsounds: FutureShared<Chatsounds>,
 }
 
 impl ChatsoundsModule {
   pub fn new(
-    option_module: Rc<RefCell<OptionModule>>,
-    entities_module: Rc<RefCell<EntitiesModule>>,
-    event_handler_module: Rc<RefCell<EventHandlerModule>>,
-    tab_list_module: Rc<RefCell<TabListModule>>,
+    mut option_module: SyncShared<OptionModule>,
+    entities_module: SyncShared<EntitiesModule>,
+    mut event_handler_module: SyncShared<EventHandlerModule>,
+    tab_list_module: SyncShared<TabListModule>,
   ) -> Self {
     let volume = option_module
-      .borrow()
+      .lock()
       .get(VOLUME_SETTING_NAME)
       .and_then(|s| s.parse().ok())
       .unwrap_or(1.0);
@@ -74,18 +74,18 @@ impl ChatsoundsModule {
       }
     };
 
-    let chatsounds = Arc::new(FutureMutex::new(chatsounds));
+    let chatsounds = FutureShared::new(chatsounds);
 
     let chatsounds_event_listener =
       ChatsoundsEventListener::new(tab_list_module, entities_module, chatsounds.clone());
     event_handler_module
-      .borrow_mut()
+      .lock()
       .register_listener(chatsounds_event_listener);
 
     Self { chatsounds }
   }
 
-  async fn load_sources(chatsounds: Arc<FutureMutex<Chatsounds>>) {
+  async fn load_sources(mut chatsounds: FutureShared<Chatsounds>) {
     let sources_len = SOURCES.len();
     for (i, source) in SOURCES.iter().enumerate() {
       let (repo, repo_path) = match source {

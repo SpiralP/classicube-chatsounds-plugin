@@ -1,10 +1,6 @@
-use crate::modules::{entities::ENTITY_SELF_ID, EntitiesModule};
+use crate::modules::{entities::ENTITY_SELF_ID, EntitiesModule, SyncShared};
 use chatsounds::SpatialSink;
-use std::{
-  cell::RefCell,
-  rc::Rc,
-  sync::{Arc, Weak},
-};
+use std::sync::{Arc, Weak};
 
 pub struct EntityEmitter {
   entity_id: usize,
@@ -20,9 +16,9 @@ impl EntityEmitter {
   }
 
   /// returns true if still alive
-  pub fn update(&mut self, entities_module: &Rc<RefCell<EntitiesModule>>) -> bool {
+  pub fn update(&mut self, entities_module: &mut SyncShared<EntitiesModule>) -> bool {
     let (emitter_pos, self_stuff) = {
-      let entities_module = entities_module.borrow();
+      let entities_module = entities_module.lock();
 
       (
         if let Some(entity) = entities_module.get(self.entity_id) {

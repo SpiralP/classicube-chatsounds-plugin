@@ -6,36 +6,31 @@ pub mod entities;
 pub mod event_handler;
 pub mod futures;
 pub mod option;
+mod shared;
 pub mod tab_list;
 
 pub use self::{
-  app_name::AppNameModule, autocomplete::AutocompleteModule, chatsounds::ChatsoundsModule,
-  command::CommandModule, entities::EntitiesModule, event_handler::EventHandlerModule,
-  futures::FuturesModule, option::OptionModule, tab_list::TabListModule,
+  app_name::AppNameModule,
+  autocomplete::AutocompleteModule,
+  chatsounds::ChatsoundsModule,
+  command::CommandModule,
+  entities::EntitiesModule,
+  event_handler::EventHandlerModule,
+  futures::FuturesModule,
+  option::OptionModule,
+  shared::{FutureShared, SyncShared, ThreadShared},
+  tab_list::TabListModule,
 };
 use crate::printer::PrinterEventListener;
-use ::futures::lock::Mutex as FutureMutex;
-use parking_lot::Mutex;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::cell::RefCell;
 
 pub trait Module {
   fn load(&mut self);
   fn unload(&mut self);
 }
 
-pub type Shared<T> = Rc<RefCell<T>>;
-pub type ThreadShared<T> = Arc<Mutex<T>>;
-pub type FutureShared<T> = Arc<FutureMutex<T>>;
-
-#[test]
-fn shared_defaults() {
-  let _: Shared<()> = Shared::default();
-  let _: ThreadShared<()> = ThreadShared::default();
-  let _: FutureShared<()> = FutureShared::default();
-}
-
 thread_local! {
-  static MODULES: RefCell<Vec<Shared<dyn Module>>> = RefCell::new(Vec::new());
+  static MODULES: RefCell<Vec<SyncShared<dyn Module>>> = RefCell::new(Vec::new());
 }
 
 pub fn load() {
@@ -44,51 +39,51 @@ pub fn load() {
 
     // TODO maybe give eachother Weak?
 
-    let entities_module = Rc::new(RefCell::new(EntitiesModule::new()));
+    let entities_module = SyncShared::new(EntitiesModule::new());
     modules.push(entities_module.clone());
 
-    let tab_list_module = Rc::new(RefCell::new(TabListModule::new()));
+    let tab_list_module = SyncShared::new(TabListModule::new());
     modules.push(tab_list_module.clone());
 
-    let option_module = Rc::new(RefCell::new(OptionModule::new()));
+    let option_module = SyncShared::new(OptionModule::new());
     modules.push(option_module.clone());
 
-    let event_handler_module = Rc::new(RefCell::new(EventHandlerModule::new()));
+    let mut event_handler_module = SyncShared::new(EventHandlerModule::new());
     event_handler_module
-      .borrow_mut()
+      .lock()
       .register_listener(PrinterEventListener {});
     modules.push(event_handler_module.clone());
 
-    let app_name_module = Rc::new(RefCell::new(AppNameModule::new()));
+    let app_name_module = SyncShared::new(AppNameModule::new());
     modules.push(app_name_module);
 
-    let futures_module = Rc::new(RefCell::new(FuturesModule::new()));
+    let futures_module = SyncShared::new(FuturesModule::new());
     modules.push(futures_module);
 
-    let chatsounds_module = Rc::new(RefCell::new(ChatsoundsModule::new(
+    let mut chatsounds_module = SyncShared::new(ChatsoundsModule::new(
       option_module.clone(),
       entities_module,
       event_handler_module.clone(),
       tab_list_module,
-    )));
+    ));
     modules.push(chatsounds_module.clone());
 
-    let command_module = Rc::new(RefCell::new(CommandModule::new(
+    let command_module = SyncShared::new(CommandModule::new(
       option_module.clone(),
       event_handler_module.clone(),
       chatsounds_module.clone(),
-    )));
+    ));
     modules.push(command_module);
 
-    let autocomplete_module = Rc::new(RefCell::new(AutocompleteModule::new(
+    let autocomplete_module = SyncShared::new(AutocompleteModule::new(
       option_module,
-      chatsounds_module.borrow().chatsounds.clone(),
+      chatsounds_module.lock().chatsounds.clone(),
       event_handler_module,
-    )));
+    ));
     modules.push(autocomplete_module);
 
     for module in modules.iter_mut() {
-      let mut module = module.borrow_mut();
+      let mut module = module.lock();
       module.load();
     }
   });
@@ -101,8 +96,8 @@ pub fn unload() {
     // TODO using Rc will keep these alive in other places on unload!
 
     // unload in reverse order
-    for module in modules.drain(..).rev() {
-      let mut module = module.borrow_mut();
+    for mut module in modules.drain(..).rev() {
+      let mut module = module.lock();
       module.unload();
     }
   });

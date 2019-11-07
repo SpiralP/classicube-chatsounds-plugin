@@ -5,32 +5,30 @@ use crate::{
     chatsounds::random::rand_index,
     entities::ENTITY_SELF_ID,
     event_handler::{IncomingEvent, IncomingEventListener},
-    EntitiesModule, FutureShared, FuturesModule, Shared, TabListModule, ThreadShared,
+    EntitiesModule, FutureShared, FuturesModule, SyncShared, TabListModule, ThreadShared,
   },
   printer::print,
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
-use parking_lot::Mutex;
-use std::sync::Arc;
 
 pub struct ChatsoundsEventListener {
   chatsounds: FutureShared<Chatsounds>,
   entity_emitters: ThreadShared<Vec<EntityEmitter>>,
   chat_last: Option<String>,
-  tab_list_module: Shared<TabListModule>,
-  entities_module: Shared<EntitiesModule>,
+  tab_list_module: SyncShared<TabListModule>,
+  entities_module: SyncShared<EntitiesModule>,
 }
 
 impl ChatsoundsEventListener {
   pub fn new(
-    tab_list_module: Shared<TabListModule>,
-    entities_module: Shared<EntitiesModule>,
+    tab_list_module: SyncShared<TabListModule>,
+    entities_module: SyncShared<EntitiesModule>,
     chatsounds: FutureShared<Chatsounds>,
   ) -> Self {
     Self {
       chatsounds,
-      entity_emitters: Arc::new(Mutex::new(Vec::new())),
+      entity_emitters: ThreadShared::new(Vec::new()),
       chat_last: None,
       tab_list_module,
       entities_module,
@@ -82,13 +80,13 @@ impl ChatsoundsEventListener {
       // lookup entity id from nick_name by using TabList
       let found_entity_id = self
         .tab_list_module
-        .borrow()
+        .lock()
         .find_entity_id_by_name(full_nick);
 
       if let Some(entity_id) = found_entity_id {
         // print(format!("FOUND {} {}", entity_id, full_nick));
 
-        let entities = self.entities_module.borrow();
+        let entities = self.entities_module.lock();
 
         let (emitter_pos, self_stuff) = {
           (
@@ -136,8 +134,8 @@ pub async fn play_chatsound(
   sentence: String,
   emitter_pos: Option<[f32; 3]>,
   self_stuff: Option<([f32; 3], f32)>,
-  chatsounds: FutureShared<Chatsounds>,
-  entity_emitters: ThreadShared<Vec<EntityEmitter>>,
+  mut chatsounds: FutureShared<Chatsounds>,
+  mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
   if sentence.to_lowercase() == "sh" {
     chatsounds.lock().await.stop_all();
@@ -183,7 +181,7 @@ impl IncomingEventListener for ChatsoundsEventListener {
 
         let mut to_remove = Vec::with_capacity(entity_emitters.len());
         for (i, emitter) in entity_emitters.iter_mut().enumerate() {
-          if !emitter.update(&self.entities_module) {
+          if !emitter.update(&mut self.entities_module) {
             to_remove.push(i);
           }
         }

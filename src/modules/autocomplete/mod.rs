@@ -3,7 +3,7 @@ mod chat;
 use self::chat::Chat;
 use crate::modules::{
   event_handler::{IncomingEvent, IncomingEventListener},
-  EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, Shared,
+  EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
 };
 use chatsounds::Chatsounds;
 use futures::{
@@ -12,16 +12,16 @@ use futures::{
 };
 
 pub struct AutocompleteModule {
-  option_module: Shared<OptionModule>,
+  option_module: SyncShared<OptionModule>,
   chatsounds: FutureShared<Chatsounds>,
-  event_handler_module: Shared<EventHandlerModule>,
+  event_handler_module: SyncShared<EventHandlerModule>,
 }
 
 impl AutocompleteModule {
   pub fn new(
-    option_module: Shared<OptionModule>,
+    option_module: SyncShared<OptionModule>,
     chatsounds: FutureShared<Chatsounds>,
-    event_handler_module: Shared<EventHandlerModule>,
+    event_handler_module: SyncShared<EventHandlerModule>,
   ) -> Self {
     Self {
       option_module,
@@ -38,7 +38,7 @@ impl Module for AutocompleteModule {
 
     self
       .event_handler_module
-      .borrow_mut()
+      .lock()
       .register_listener(autocomplete_event_listener);
   }
 
@@ -50,7 +50,10 @@ pub struct AutocompleteEventListener {
 }
 
 impl AutocompleteEventListener {
-  pub fn new(option_module: Shared<OptionModule>, chatsounds: FutureShared<Chatsounds>) -> Self {
+  pub fn new(
+    option_module: SyncShared<OptionModule>,
+    chatsounds: FutureShared<Chatsounds>,
+  ) -> Self {
     let (sender, mut receiver) = unbounded();
 
     let mut chat = Chat::new(option_module, chatsounds);
