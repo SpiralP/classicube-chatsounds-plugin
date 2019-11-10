@@ -3,13 +3,13 @@ use crate::{
   helpers::remove_color,
   modules::{
     chatsounds::random::rand_index,
-    entities::ENTITY_SELF_ID,
     event_handler::{IncomingEvent, IncomingEventListener},
-    EntitiesModule, FutureShared, FuturesModule, SyncShared, TabListModule, ThreadShared,
+    FutureShared, FuturesModule, SyncShared, TabListModule, ThreadShared,
   },
   printer::print,
 };
 use chatsounds::Chatsounds;
+use classicube_helpers::{Entities, ENTITY_SELF_ID};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
 
 pub struct ChatsoundsEventListener {
@@ -17,13 +17,13 @@ pub struct ChatsoundsEventListener {
   entity_emitters: ThreadShared<Vec<EntityEmitter>>,
   chat_last: Option<String>,
   tab_list_module: SyncShared<TabListModule>,
-  entities_module: SyncShared<EntitiesModule>,
+  entities: SyncShared<Entities>,
 }
 
 impl ChatsoundsEventListener {
   pub fn new(
     tab_list_module: SyncShared<TabListModule>,
-    entities_module: SyncShared<EntitiesModule>,
+    entities: SyncShared<Entities>,
     chatsounds: FutureShared<Chatsounds>,
   ) -> Self {
     Self {
@@ -31,7 +31,7 @@ impl ChatsoundsEventListener {
       entity_emitters: ThreadShared::new(Vec::new()),
       chat_last: None,
       tab_list_module,
-      entities_module,
+      entities,
     }
   }
 
@@ -86,7 +86,7 @@ impl ChatsoundsEventListener {
       if let Some(entity_id) = found_entity_id {
         // print(format!("FOUND {} {}", entity_id, full_nick));
 
-        let entities = self.entities_module.lock();
+        let entities = self.entities.lock();
 
         let (emitter_pos, self_stuff) = {
           (
@@ -130,7 +130,7 @@ impl ChatsoundsEventListener {
 }
 
 pub async fn play_chatsound(
-  entity_id: usize,
+  entity_id: u8,
   sentence: String,
   emitter_pos: Option<[f32; 3]>,
   self_stuff: Option<([f32; 3], f32)>,
@@ -181,7 +181,7 @@ impl IncomingEventListener for ChatsoundsEventListener {
 
         let mut to_remove = Vec::with_capacity(entity_emitters.len());
         for (i, emitter) in entity_emitters.iter_mut().enumerate() {
-          if !emitter.update(&mut self.entities_module) {
+          if !emitter.update(&mut self.entities) {
             to_remove.push(i);
           }
         }

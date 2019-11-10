@@ -1,14 +1,15 @@
-use crate::modules::{entities::ENTITY_SELF_ID, EntitiesModule, SyncShared};
+use crate::modules::SyncShared;
 use chatsounds::SpatialSink;
+use classicube_helpers::{Entities, ENTITY_SELF_ID};
 use std::sync::{Arc, Weak};
 
 pub struct EntityEmitter {
-  entity_id: usize,
+  entity_id: u8,
   sink: Weak<SpatialSink>,
 }
 
 impl EntityEmitter {
-  pub fn new(entity_id: usize, sink: &Arc<SpatialSink>) -> Self {
+  pub fn new(entity_id: u8, sink: &Arc<SpatialSink>) -> Self {
     Self {
       entity_id,
       sink: Arc::downgrade(&sink),
@@ -16,17 +17,17 @@ impl EntityEmitter {
   }
 
   /// returns true if still alive
-  pub fn update(&mut self, entities_module: &mut SyncShared<EntitiesModule>) -> bool {
+  pub fn update(&mut self, entities: &mut SyncShared<Entities>) -> bool {
     let (emitter_pos, self_stuff) = {
-      let entities_module = entities_module.lock();
+      let entities = entities.lock();
 
       (
-        if let Some(entity) = entities_module.get(self.entity_id) {
+        if let Some(entity) = entities.get(self.entity_id) {
           Some(entity.get_pos())
         } else {
           None
         },
-        if let Some(entity) = entities_module.get(ENTITY_SELF_ID) {
+        if let Some(entity) = entities.get(ENTITY_SELF_ID) {
           Some((entity.get_pos(), entity.get_rot()[1]))
         } else {
           None

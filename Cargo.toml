@@ -4,8 +4,6 @@ version = "2.0.0"
 authors = ["SpiralP <spiral.palmer@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 crate-type = ["cdylib"]
 
@@ -14,6 +12,7 @@ arrayvec = "0.5.1"
 async-std = "0.99.11"
 chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git" }
 classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
+classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git" }
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
 crossbeam-channel = "0.4.0"
 detour = "0.7.1"

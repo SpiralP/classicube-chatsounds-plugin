@@ -4,12 +4,12 @@ use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use std::{collections::HashMap, sync::Mutex};
 
 lazy_static! {
-  pub static ref ENTITY_COUNTS: Mutex<HashMap<usize, usize>> = Mutex::new(HashMap::new());
+  pub static ref ENTITY_COUNTS: Mutex<HashMap<u8, usize>> = Mutex::new(HashMap::new());
 }
 
 // TODO synced reset on new player/etc
 
-pub fn rand_index<T>(vec: &[T], entity_id: usize) -> Option<&T> {
+pub fn rand_index<T>(vec: &[T], entity_id: u8) -> Option<&T> {
   let count = {
     let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
     let count = entity_counts.entry(entity_id).or_insert(0);

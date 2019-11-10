@@ -2,7 +2,6 @@ pub mod app_name;
 pub mod autocomplete;
 pub mod chatsounds;
 pub mod command;
-pub mod entities;
 pub mod event_handler;
 pub mod futures;
 pub mod option;
@@ -14,7 +13,6 @@ pub use self::{
   autocomplete::AutocompleteModule,
   chatsounds::ChatsoundsModule,
   command::CommandModule,
-  entities::EntitiesModule,
   event_handler::EventHandlerModule,
   futures::FuturesModule,
   option::OptionModule,
@@ -22,6 +20,7 @@ pub use self::{
   tab_list::TabListModule,
 };
 use crate::printer::PrinterEventListener;
+use classicube_helpers::Entities;
 use std::cell::RefCell;
 
 pub trait Module {
@@ -39,8 +38,8 @@ pub fn load() {
 
     // TODO maybe give eachother Weak?
 
-    let entities_module = SyncShared::new(EntitiesModule::new());
-    modules.push(entities_module.clone());
+    let entities = SyncShared::new(Entities::register());
+    // modules.push(entities.clone());
 
     let tab_list_module = SyncShared::new(TabListModule::new());
     modules.push(tab_list_module.clone());
@@ -62,7 +61,7 @@ pub fn load() {
 
     let mut chatsounds_module = SyncShared::new(ChatsoundsModule::new(
       option_module.clone(),
-      entities_module,
+      entities,
       event_handler_module.clone(),
       tab_list_module,
     ));

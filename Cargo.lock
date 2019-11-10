@@ -316,6 +316,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "classicube-helpers"
+version = "0.1.0"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#20c47604099d40db46d44d5b16d0188642d0c748"
+dependencies = [
+ "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
+]
+
+[[package]]
 name = "classicube-sys"
 version = "0.1.0"
 source = "git+https://github.com/SpiralP/rust-classicube-sys.git#797450f835f345ab12a75e1129c72fd8133e3b17"
@@ -1893,6 +1901,7 @@ dependencies = [
  "arrayvec 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 0.99.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "chatsounds 0.1.0 (git+https://github.com/SpiralP/rust-chatsounds.git)",
+ "classicube-helpers 0.1.0 (git+https://github.com/SpiralP/rust-classicube-helpers.git)",
  "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
  "color-backtrace 0.3.0 (git+https://github.com/SpiralP/color-backtrace-msgbox.git)",
  "crossbeam-channel 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2641,6 +2650,7 @@ dependencies = [
 "checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 "checksum chatsounds 0.1.0 (git+https://github.com/SpiralP/rust-chatsounds.git)" = "<none>"
 "checksum clang-sys 0.28.1 (registry+https://github.com/rust-lang/crates.io-index)" = "81de550971c976f176130da4b2978d3b524eaa0fd9ac31f3ceb5ae1231fb4853"
+"checksum classicube-helpers 0.1.0 (git+https://github.com/SpiralP/rust-classicube-helpers.git)" = "<none>"
 "checksum classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)" = "<none>"
 "checksum claxon 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f86c952727a495bda7abaf09bafdee1a939194dd793d9a8e26281df55ac43b00"
 "checksum cloudabi 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"

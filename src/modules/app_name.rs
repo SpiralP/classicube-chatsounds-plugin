@@ -1,10 +1,6 @@
 use crate::modules::Module;
 use classicube_sys::{Server, String_AppendConst};
-use std::{cell::Cell, ffi::CString};
-
-thread_local! {
-  static APP_NAME: Cell<Option<CString>> = Cell::new(None);
-}
+use std::ffi::CString;
 
 pub struct AppNameModule {
   app_name: Option<CString>,

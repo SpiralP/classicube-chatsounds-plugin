@@ -9,17 +9,17 @@ use std::{
 };
 
 pub struct TabListModule {
-  entries: HashMap<usize, TabListEntry>,
+  entries: HashMap<u8, TabListEntry>,
 }
 
 impl TabListModule {
   pub fn new() -> Self {
     Self {
-      entries: HashMap::new(),
+      entries: HashMap::with_capacity(256),
     }
   }
 
-  pub fn find_entity_id_by_name(&self, full_nick: String) -> Option<usize> {
+  pub fn find_entity_id_by_name(&self, full_nick: String) -> Option<u8> {
     // try exact match
     self
       .entries
@@ -33,7 +33,7 @@ impl TabListModule {
       })
       .or_else(|| {
         // match from the right, choose the one with most chars matched
-        let mut id_positions: Vec<(usize, usize)> = self
+        let mut id_positions: Vec<(u8, usize)> = self
           .entries
           .iter()
           .filter_map(|(id, entry)| {
@@ -122,7 +122,7 @@ impl Module for TabListModule {
 extern "C" fn on_tablist_added(obj: *mut c_void, id: c_int) {
   let module = obj as *mut TabListModule;
   let module = unsafe { &mut *module };
-  let id = id as usize;
+  let id = id as u8;
 
   // print(format!("add {}", id));
 
@@ -132,7 +132,7 @@ extern "C" fn on_tablist_added(obj: *mut c_void, id: c_int) {
 extern "C" fn on_tablist_changed(obj: *mut c_void, id: c_int) {
   let module = obj as *mut TabListModule;
   let module = unsafe { &mut *module };
-  let id = id as usize;
+  let id = id as u8;
 
   // print(format!("changed {}", id));
 
@@ -142,7 +142,7 @@ extern "C" fn on_tablist_changed(obj: *mut c_void, id: c_int) {
 extern "C" fn on_tablist_removed(obj: *mut c_void, id: c_int) {
   let module = obj as *mut TabListModule;
   let module = unsafe { &mut *module };
-  let id = id as usize;
+  let id = id as u8;
 
   // print(format!("removed {}", id));
 

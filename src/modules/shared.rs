@@ -13,6 +13,7 @@ pub struct SyncShared<T: ?Sized> {
   inner: Rc<RefCell<T>>,
 }
 
+// fix for SyncShared<dyn Module>
 impl<T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<SyncShared<U>> for SyncShared<T> {}
 
 impl<T> SyncShared<T> {
