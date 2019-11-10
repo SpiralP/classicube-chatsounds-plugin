@@ -7,12 +7,12 @@ use crate::{
   modules::{
     command::VOLUME_SETTING_NAME,
     shared::{FutureShared, SyncShared},
-    EventHandlerModule, FuturesModule, Module, OptionModule, TabListModule,
+    EventHandlerModule, FuturesModule, Module, OptionModule,
   },
   printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::Entities;
+use classicube_helpers::{Entities, TabList};
 use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
@@ -48,7 +48,7 @@ impl ChatsoundsModule {
     mut option_module: SyncShared<OptionModule>,
     entities: SyncShared<Entities>,
     mut event_handler_module: SyncShared<EventHandlerModule>,
-    tab_list_module: SyncShared<TabListModule>,
+    tab_list: SyncShared<TabList>,
   ) -> Self {
     let volume = option_module
       .lock()
@@ -78,7 +78,7 @@ impl ChatsoundsModule {
     let chatsounds = FutureShared::new(chatsounds);
 
     let chatsounds_event_listener =
-      ChatsoundsEventListener::new(tab_list_module, entities, chatsounds.clone());
+      ChatsoundsEventListener::new(tab_list, entities, chatsounds.clone());
     event_handler_module
       .lock()
       .register_listener(chatsounds_event_listener);

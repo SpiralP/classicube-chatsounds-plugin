@@ -4,25 +4,25 @@ use crate::{
   modules::{
     chatsounds::random::rand_index,
     event_handler::{IncomingEvent, IncomingEventListener},
-    FutureShared, FuturesModule, SyncShared, TabListModule, ThreadShared,
+    FutureShared, FuturesModule, SyncShared, ThreadShared,
   },
   printer::print,
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{Entities, ENTITY_SELF_ID};
+use classicube_helpers::{Entities, TabList, ENTITY_SELF_ID};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
 
 pub struct ChatsoundsEventListener {
   chatsounds: FutureShared<Chatsounds>,
   entity_emitters: ThreadShared<Vec<EntityEmitter>>,
   chat_last: Option<String>,
-  tab_list_module: SyncShared<TabListModule>,
+  tab_list: SyncShared<TabList>,
   entities: SyncShared<Entities>,
 }
 
 impl ChatsoundsEventListener {
   pub fn new(
-    tab_list_module: SyncShared<TabListModule>,
+    tab_list: SyncShared<TabList>,
     entities: SyncShared<Entities>,
     chatsounds: FutureShared<Chatsounds>,
   ) -> Self {
@@ -30,7 +30,7 @@ impl ChatsoundsEventListener {
       chatsounds,
       entity_emitters: ThreadShared::new(Vec::new()),
       chat_last: None,
-      tab_list_module,
+      tab_list,
       entities,
     }
   }
@@ -78,10 +78,7 @@ impl ChatsoundsEventListener {
       let colorless_text: String = remove_color(right.to_string()).trim().to_string();
 
       // lookup entity id from nick_name by using TabList
-      let found_entity_id = self
-        .tab_list_module
-        .lock()
-        .find_entity_id_by_name(full_nick);
+      let found_entity_id = self.tab_list.lock().find_entity_id_by_name(full_nick);
 
       if let Some(entity_id) = found_entity_id {
         // print(format!("FOUND {} {}", entity_id, full_nick));

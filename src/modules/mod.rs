@@ -6,7 +6,6 @@ pub mod event_handler;
 pub mod futures;
 pub mod option;
 mod shared;
-pub mod tab_list;
 
 pub use self::{
   app_name::AppNameModule,
@@ -17,10 +16,9 @@ pub use self::{
   futures::FuturesModule,
   option::OptionModule,
   shared::{FutureShared, SyncShared, ThreadShared},
-  tab_list::TabListModule,
 };
 use crate::printer::PrinterEventListener;
-use classicube_helpers::Entities;
+use classicube_helpers::{Entities, TabList};
 use std::cell::RefCell;
 
 pub trait Module {
@@ -41,8 +39,8 @@ pub fn load() {
     let entities = SyncShared::new(Entities::register());
     // modules.push(entities.clone());
 
-    let tab_list_module = SyncShared::new(TabListModule::new());
-    modules.push(tab_list_module.clone());
+    let tab_list = SyncShared::new(TabList::register());
+    // modules.push(tab_list.clone());
 
     let option_module = SyncShared::new(OptionModule::new());
     modules.push(option_module.clone());
@@ -63,7 +61,7 @@ pub fn load() {
       option_module.clone(),
       entities,
       event_handler_module.clone(),
-      tab_list_module,
+      tab_list,
     ));
     modules.push(chatsounds_module.clone());
 
