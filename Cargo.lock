@@ -323,7 +323,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#1f69d2a2812d0e1271e54b69a25df90cb2d76f0a"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#251e5683072e03d977d9c0e59dcf6a6bb725928a"
 dependencies = [
  "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
 ]

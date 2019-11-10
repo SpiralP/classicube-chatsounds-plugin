@@ -37,10 +37,7 @@ pub fn load() {
     // TODO maybe give eachother Weak?
 
     let entities = SyncShared::new(Entities::register());
-    // modules.push(entities.clone());
-
     let tab_list = SyncShared::new(TabList::register());
-    // modules.push(tab_list.clone());
 
     let option_module = SyncShared::new(OptionModule::new());
     modules.push(option_module.clone());
