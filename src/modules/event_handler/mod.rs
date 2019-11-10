@@ -22,9 +22,9 @@ use std::{
 };
 
 // hack for tick_detour
-thread_local! {
+thread_local!(
   static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = Cell::new(None);
-}
+);
 
 lazy_static! {
   pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);

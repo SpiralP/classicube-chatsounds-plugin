@@ -26,9 +26,9 @@ pub trait Module {
   fn unload(&mut self);
 }
 
-thread_local! {
+thread_local!(
   static MODULES: RefCell<Vec<SyncShared<dyn Module>>> = RefCell::new(Vec::new());
-}
+);
 
 pub fn load() {
   MODULES.with(|ref_cell| {

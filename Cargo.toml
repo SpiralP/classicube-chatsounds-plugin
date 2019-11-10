@@ -11,8 +11,8 @@ crate-type = ["cdylib"]
 arrayvec = "0.5.1"
 async-std = "0.99.11"
 chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git" }
-classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git" }
+classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
 crossbeam-channel = "0.4.0"
 detour = "0.7.1"

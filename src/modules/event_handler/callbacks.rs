@@ -9,9 +9,9 @@ use std::{
   os::raw::{c_int, c_void},
 };
 
-thread_local! {
+thread_local!(
   pub static SIMULATING: Cell<bool> = Cell::new(false);
-}
+);
 
 static_detour! {
   pub static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
