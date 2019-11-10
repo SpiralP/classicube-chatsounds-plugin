@@ -141,9 +141,11 @@ impl Module for EventHandlerModule {
     }
 
     unsafe {
-      if let Some(tick_original) = Server.Tick {
-        TICK_DETOUR.initialize(tick_original, tick_detour).unwrap();
-        TICK_DETOUR.enable().unwrap();
+      if Server.IsSinglePlayer == 0 {
+        if let Some(tick_original) = Server.Tick {
+          TICK_DETOUR.initialize(tick_original, tick_detour).unwrap();
+          TICK_DETOUR.enable().unwrap();
+        }
       }
     }
 

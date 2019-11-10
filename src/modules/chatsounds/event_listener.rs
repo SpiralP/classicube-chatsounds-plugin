@@ -10,7 +10,7 @@ use crate::{
 };
 use chatsounds::Chatsounds;
 use classicube_helpers::{Entities, TabList, ENTITY_SELF_ID};
-use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL};
+use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server};
 
 pub struct ChatsoundsEventListener {
   chatsounds: FutureShared<Chatsounds>,
@@ -35,10 +35,9 @@ impl ChatsoundsEventListener {
     }
   }
 
-  // run this sync so that chat_last comes in order
-  fn handle_chat_received(&mut self, mut full_msg: String, msg_type: MsgType) {
-    if msg_type != MsgType_MSG_TYPE_NORMAL {
-      return;
+  fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(u8, String)> {
+    if unsafe { Server.IsSinglePlayer } != 0 {
+      return Some((ENTITY_SELF_ID, full_msg));
     }
 
     if !full_msg.starts_with("> &f") {
@@ -68,60 +67,74 @@ impl ChatsoundsEventListener {
 
       if right.find(':').is_some() {
         // no colons in any chatsound, and we could have parsed nick wrong
-        return;
+        return None;
       }
 
-      // TODO title is [ ] before nick, team is < > before nick, also there are rank symbols?
-      // &f┬ &f♂&6 Goodly: &fhi
+      // TODO title is [ ] before nick, team is < > before nick, also there are rank
+      // symbols? &f┬ &f♂&6 Goodly: &fhi
 
       let full_nick = left.to_string();
-      let colorless_text: String = remove_color(right.to_string()).trim().to_string();
+      let said_text = right.to_string();
 
       // lookup entity id from nick_name by using TabList
-      let found_entity_id = self.tab_list.lock().find_entity_id_by_name(full_nick);
+      self
+        .tab_list
+        .lock()
+        .find_entity_id_by_name(full_nick)
+        .map(|id| (id, said_text))
+    } else {
+      None
+    }
+  }
 
-      if let Some(entity_id) = found_entity_id {
-        // print(format!("FOUND {} {}", entity_id, full_nick));
+  // run this sync so that chat_last comes in order
+  fn handle_chat_received(&mut self, full_msg: String, msg_type: MsgType) {
+    if msg_type != MsgType_MSG_TYPE_NORMAL {
+      return;
+    }
 
-        let entities = self.entities.lock();
+    if let Some((entity_id, said_text)) = self.find_player_from_message(full_msg) {
+      // print(format!("FOUND {} {}", entity_id, full_nick));
 
-        let (emitter_pos, self_stuff) = {
-          (
-            if let Some(entity) = entities.get(entity_id) {
-              Some(entity.get_pos())
-            } else {
-              None
-            },
-            if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-              Some((entity.get_pos(), entity.get_rot()[1]))
-            } else {
-              print(format!(
-                "couldn't get entity.get_pos/rot() {}",
-                ENTITY_SELF_ID
-              ));
-              None
-            },
-          )
-        };
+      let entities = self.entities.lock();
 
-        let chatsounds = self.chatsounds.clone();
-        let entity_emitters = self.entity_emitters.clone();
+      let (emitter_pos, self_stuff) = {
+        (
+          if let Some(entity) = entities.get(entity_id) {
+            Some(entity.get_pos())
+          } else {
+            None
+          },
+          if let Some(entity) = entities.get(ENTITY_SELF_ID) {
+            Some((entity.get_pos(), entity.get_rot()[1]))
+          } else {
+            print(format!(
+              "couldn't get entity.get_pos/rot() {}",
+              ENTITY_SELF_ID
+            ));
+            None
+          },
+        )
+      };
 
-        // it doesn't matter if these are out of order so we just spawn
-        FuturesModule::spawn_future(async move {
-          play_chatsound(
-            entity_id,
-            colorless_text,
-            emitter_pos,
-            self_stuff,
-            chatsounds,
-            entity_emitters,
-          )
-          .await;
-        });
+      let chatsounds = self.chatsounds.clone();
+      let entity_emitters = self.entity_emitters.clone();
+      let colorless_text: String = remove_color(said_text).trim().to_string();
 
-        // } else { print(format!("not found {}", full_nick)); }
-      }
+      // it doesn't matter if these are out of order so we just spawn
+      FuturesModule::spawn_future(async move {
+        play_chatsound(
+          entity_id,
+          colorless_text,
+          emitter_pos,
+          self_stuff,
+          chatsounds,
+          entity_emitters,
+        )
+        .await;
+      });
+
+      // } else { print(format!("not found {}", full_nick)); }
     }
   }
 }
