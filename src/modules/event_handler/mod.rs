@@ -3,7 +3,7 @@ mod outgoing_events;
 mod types;
 
 use self::callbacks::{
-  c_on_input_down, on_chat_received, on_input_press, on_input_up, tick_detour, TICK_DETOUR,
+  on_chat_received, on_input_down, on_input_press, on_input_up, tick_detour, TICK_DETOUR,
 };
 pub use self::types::{IncomingEvent, OutgoingEvent};
 use crate::modules::Module;
@@ -130,7 +130,7 @@ impl Module for EventHandlerModule {
       Event_RegisterInput(
         &mut InputEvents.Down,
         ptr as *mut c_void,
-        Some(c_on_input_down),
+        Some(on_input_down),
       );
       Event_RegisterInt(&mut InputEvents.Up, ptr as *mut c_void, Some(on_input_up));
       Event_RegisterInt(
@@ -170,7 +170,7 @@ impl Module for EventHandlerModule {
       Event_UnregisterInput(
         &mut InputEvents.Down,
         ptr as *mut c_void,
-        Some(c_on_input_down),
+        Some(on_input_down),
       );
       Event_UnregisterInt(&mut InputEvents.Up, ptr as *mut c_void, Some(on_input_up));
       Event_UnregisterInt(

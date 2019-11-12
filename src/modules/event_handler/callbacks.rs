@@ -59,8 +59,7 @@ pub extern "C" fn on_chat_received(
   module.handle_outgoing_events();
 }
 
-#[inline]
-fn on_input_down(obj: *mut c_void, key: c_int, repeat: bool) {
+pub extern "C" fn on_input_down(obj: *mut c_void, key: c_int, repeat: u8) {
   let module = obj as *mut EventHandlerModule;
   let module = unsafe { &mut *module };
 
@@ -70,18 +69,8 @@ fn on_input_down(obj: *mut c_void, key: c_int, repeat: bool) {
 
   let key = key as Key_;
 
-  module.handle_incoming_event(IncomingEvent::InputDown(key, repeat));
+  module.handle_incoming_event(IncomingEvent::InputDown(key, repeat != 0));
   module.handle_outgoing_events();
-}
-
-#[cfg(target_os = "macos")]
-pub extern "C" fn c_on_input_down(obj: *mut c_void, key: c_int, repeat: bool) {
-  on_input_down(obj, key, repeat)
-}
-
-#[cfg(not(target_os = "macos"))]
-pub extern "C" fn c_on_input_down(obj: *mut c_void, key: c_int, repeat: u8) {
-  on_input_down(obj, key, repeat != 0)
 }
 
 pub extern "C" fn on_input_up(obj: *mut c_void, key: c_int) {
