@@ -356,7 +356,7 @@ dependencies = [
 [[package]]
 name = "classicube-sys"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-sys.git#157cabad6d6a5af3a0c181ebbbfa6a34da29c22b"
+source = "git+https://github.com/SpiralP/rust-classicube-sys.git#24998e4c9c50ff32f5f9fc3f9b5a076f4494ef8a"
 dependencies = [
  "arrayvec 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.47 (registry+https://github.com/rust-lang/crates.io-index)",
