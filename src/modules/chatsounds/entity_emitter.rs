@@ -1,6 +1,7 @@
 use crate::modules::SyncShared;
 use chatsounds::SpatialSink;
 use classicube_helpers::{Entities, ENTITY_SELF_ID};
+use classicube_sys::Vec3;
 use std::sync::{Arc, Weak};
 
 pub struct EntityEmitter {
@@ -23,12 +24,12 @@ impl EntityEmitter {
 
       (
         if let Some(entity) = entities.get(self.entity_id) {
-          Some(entity.get_pos())
+          Some(entity.get_position())
         } else {
           None
         },
         if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-          Some((entity.get_pos(), entity.get_rot()[1]))
+          Some((entity.get_position(), entity.get_rot()[1]))
         } else {
           None
         },
@@ -48,8 +49,8 @@ impl EntityEmitter {
   }
 
   pub fn coords_to_sink_positions(
-    emitter_pos: [f32; 3],
-    self_pos: [f32; 3],
+    emitter_pos: Vec3,
+    self_pos: Vec3,
     self_rot: f32,
   ) -> ([f32; 3], [f32; 3], [f32; 3]) {
     use std::f32::consts::PI;
@@ -77,14 +78,18 @@ impl EntityEmitter {
     // ));
 
     let mut left_ear_pos = self_pos;
-    left_ear_pos[0] += HEAD_SIZE * left_cos; // x
-    left_ear_pos[2] += HEAD_SIZE * left_sin; // z
+    left_ear_pos.X += HEAD_SIZE * left_cos; // x
+    left_ear_pos.Z += HEAD_SIZE * left_sin; // z
 
     let mut right_ear_pos = self_pos;
-    right_ear_pos[0] += HEAD_SIZE * right_cos; // x
-    right_ear_pos[2] += HEAD_SIZE * right_sin; // z
+    right_ear_pos.X += HEAD_SIZE * right_cos; // x
+    right_ear_pos.Z += HEAD_SIZE * right_sin; // z
 
-    (emitter_pos, left_ear_pos, right_ear_pos)
+    (
+      [emitter_pos.X, emitter_pos.Y, emitter_pos.Z],
+      [left_ear_pos.X, left_ear_pos.Y, left_ear_pos.Z],
+      [right_ear_pos.X, right_ear_pos.Y, right_ear_pos.Z],
+    )
   }
 
   pub fn update_sink(

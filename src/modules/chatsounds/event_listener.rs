@@ -10,7 +10,7 @@ use crate::{
 };
 use chatsounds::Chatsounds;
 use classicube_helpers::{Entities, TabList, ENTITY_SELF_ID};
-use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server};
+use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
 
 pub struct ChatsoundsEventListener {
   chatsounds: FutureShared<Chatsounds>,
@@ -101,12 +101,12 @@ impl ChatsoundsEventListener {
       let (emitter_pos, self_stuff) = {
         (
           if let Some(entity) = entities.get(entity_id) {
-            Some(entity.get_pos())
+            Some(entity.get_position())
           } else {
             None
           },
           if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-            Some((entity.get_pos(), entity.get_rot()[1]))
+            Some((entity.get_position(), entity.get_rot()[1]))
           } else {
             print(format!(
               "couldn't get entity.get_pos/rot() {}",
@@ -142,8 +142,8 @@ impl ChatsoundsEventListener {
 pub async fn play_chatsound(
   entity_id: u8,
   sentence: String,
-  emitter_pos: Option<[f32; 3]>,
-  self_stuff: Option<([f32; 3], f32)>,
+  emitter_pos: Option<Vec3>,
+  self_stuff: Option<(Vec3, f32)>,
   mut chatsounds: FutureShared<Chatsounds>,
   mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
