@@ -1,6 +1,9 @@
 use crate::modules::Module;
-use classicube_sys::{Key_, Options_Get, Options_Set, OwnedString, STRING_SIZE};
-use std::{ffi::CString, os::raw::c_char};
+use classicube_sys::{
+  keybindNames, Input_Names, KeyBind_Defaults, Key_, Options_Get, Options_Set, OwnedString,
+  STRING_SIZE,
+};
+use std::{collections::HashMap, ffi::CString, os::raw::c_char};
 
 pub struct OptionModule {
   pub open_chat_key: Option<Key_>,
@@ -15,9 +18,10 @@ impl OptionModule {
     }
   }
 
-  pub fn get_key_from_input_name<S: AsRef<str>>(&self, s: S) -> Option<Key_> {
+  pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key_> {
     let s = s.as_ref();
-    INPUT_NAMES
+
+    Input_Names
       .iter()
       .position(|&item| item == s)
       .map(|n| n as Key_)
@@ -56,154 +60,32 @@ impl OptionModule {
       Options_Set(c_key.as_ptr(), cc_string_value.as_cc_string());
     }
   }
+
+  fn get_all_keybinds(&self) -> HashMap<&'static str, Key_> {
+    let mut map = HashMap::with_capacity(keybindNames.len());
+
+    for (i, keybind_name) in keybindNames.iter().copied().enumerate() {
+      let option_name = format!("key-{}", keybind_name);
+
+      let key = self
+        .get(option_name)
+        .and_then(|key_name| OptionModule::get_key_from_input_name(&key_name))
+        .unwrap_or_else(|| KeyBind_Defaults[i] as Key_);
+
+      map.insert(keybind_name, key);
+    }
+
+    map
+  }
 }
 
 impl Module for OptionModule {
   fn load(&mut self) {
-    self.open_chat_key = self
-      .get("key-Chat")
-      .and_then(|s| self.get_key_from_input_name(&s));
+    let keybinds = self.get_all_keybinds();
 
-    self.send_chat_key = self
-      .get("key-SendChat")
-      .and_then(|s| self.get_key_from_input_name(&s));
+    self.open_chat_key = keybinds.get("Chat").cloned();
+    self.send_chat_key = keybinds.get("SendChat").cloned();
   }
 
   fn unload(&mut self) {}
 }
-
-const INPUT_NAMES: [&str; 133] = [
-  "None",
-  "F1",
-  "F2",
-  "F3",
-  "F4",
-  "F5",
-  "F6",
-  "F7",
-  "F8",
-  "F9",
-  "F10",
-  "F11",
-  "F12",
-  "F13",
-  "F14",
-  "F15",
-  "F16",
-  "F17",
-  "F18",
-  "F19",
-  "F20",
-  "F21",
-  "F22",
-  "F23",
-  "F24",
-  "F25",
-  "F26",
-  "F27",
-  "F28",
-  "F29",
-  "F30",
-  "F31",
-  "F32",
-  "F33",
-  "F34",
-  "F35",
-  "ShiftLeft",
-  "ShiftRight",
-  "ControlLeft",
-  "ControlRight",
-  "AltLeft",
-  "AltRight",
-  "WinLeft",
-  "WinRight",
-  "Up",
-  "Down",
-  "Left",
-  "Right",
-  "Number0",
-  "Number1",
-  "Number2",
-  "Number3",
-  "Number4",
-  "Number5",
-  "Number6",
-  "Number7",
-  "Number8",
-  "Number9",
-  "Insert",
-  "Delete",
-  "Home",
-  "End",
-  "PageUp",
-  "PageDown",
-  "Menu",
-  "A",
-  "B",
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "I",
-  "J",
-  "K",
-  "L",
-  "M",
-  "N",
-  "O",
-  "P",
-  "Q",
-  "R",
-  "S",
-  "T",
-  "U",
-  "V",
-  "W",
-  "X",
-  "Y",
-  "Z",
-  "Enter",
-  "Escape",
-  "Space",
-  "BackSpace",
-  "Tab",
-  "CapsLock",
-  "ScrollLock",
-  "PrintScreen",
-  "Pause",
-  "NumLock",
-  "Keypad0",
-  "Keypad1",
-  "Keypad2",
-  "Keypad3",
-  "Keypad4",
-  "Keypad5",
-  "Keypad6",
-  "Keypad7",
-  "Keypad8",
-  "Keypad9",
-  "KeypadDivide",
-  "KeypadMultiply",
-  "KeypadSubtract",
-  "KeypadAdd",
-  "KeypadDecimal",
-  "KeypadEnter",
-  "Tilde",
-  "Minus",
-  "Plus",
-  "BracketLeft",
-  "BracketRight",
-  "Slash",
-  "Semicolon",
-  "Quote",
-  "Comma",
-  "Period",
-  "BackSlash",
-  "XButton1",
-  "XButton2",
-  "LeftMouse",
-  "RightMouse",
-  "MiddleMouse",
-];

@@ -348,7 +348,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#65f9e27504c6c4a98b0052eed16427d503cd8089"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#72d35b1a08215091d0860b6b0704d472509fece4"
 dependencies = [
  "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
 ]
@@ -356,7 +356,7 @@ dependencies = [
 [[package]]
 name = "classicube-sys"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-sys.git#2b625100123abfb3819f725cecebc9812c9ff3e8"
+source = "git+https://github.com/SpiralP/rust-classicube-sys.git#157cabad6d6a5af3a0c181ebbbfa6a34da29c22b"
 dependencies = [
  "arrayvec 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.47 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1921,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "rust-classicube-chatsounds-plugin"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "arrayvec 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",

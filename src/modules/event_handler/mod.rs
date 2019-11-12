@@ -119,6 +119,7 @@ impl Module for EventHandlerModule {
       *outgoing_sender = self.outgoing_event_sender.take();
     }
 
+    // TODO should this be Pin??
     let ptr: *mut EventHandlerModule = self;
     unsafe {
       Event_RegisterChat(
