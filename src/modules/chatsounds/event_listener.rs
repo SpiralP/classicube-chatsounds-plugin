@@ -65,11 +65,6 @@ impl ChatsoundsEventListener {
                                    // &faaa
       let right = &full_msg[(pos + 2)..]; // right without colon
 
-      if right.find(':').is_some() {
-        // no colons in any chatsound, and we could have parsed nick wrong
-        return None;
-      }
-
       // TODO title is [ ] before nick, team is < > before nick, also there are rank
       // symbols? &f┬ &f♂&6 Goodly: &fhi
 
@@ -123,7 +118,7 @@ impl ChatsoundsEventListener {
 
       // it doesn't matter if these are out of order so we just spawn
       FuturesModule::spawn_future(async move {
-        play_chatsound(
+        if let Err(e) = play_chatsound(
           entity_id,
           colorless_text,
           emitter_pos,
@@ -131,7 +126,10 @@ impl ChatsoundsEventListener {
           chatsounds,
           entity_emitters,
         )
-        .await;
+        .await
+        {
+          // TODO
+        }
       });
 
       // } else { print(format!("not found {}", full_nick)); }
@@ -146,35 +144,34 @@ pub async fn play_chatsound(
   self_stuff: Option<(Vec3, f32)>,
   mut chatsounds: FutureShared<Chatsounds>,
   mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
-) {
+) -> Result<(), String> {
   if sentence.to_lowercase() == "sh" {
     chatsounds.lock().await.stop_all();
     entity_emitters.lock().clear();
-    return;
+    return Ok(());
   }
 
   let mut chatsounds = chatsounds.lock().await;
-  if let Some(sounds) = chatsounds.get(sentence) {
-    if let Some(sound) = rand_index(sounds, entity_id).cloned() {
-      if entity_id == ENTITY_SELF_ID {
-        // if self entity, play 2d sound
-        chatsounds.play(&sound).await;
-      } else if let Some(emitter_pos) = emitter_pos {
-        if let Some((self_pos, self_rot)) = self_stuff {
-          let (emitter_pos, left_ear_pos, right_ear_pos) =
-            EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-          let sink = chatsounds
-            .play_spatial(&sound, emitter_pos, left_ear_pos, right_ear_pos)
-            .await;
+  if entity_id == ENTITY_SELF_ID {
+    // if self entity, play 2d sound
+    chatsounds.play(&sentence).await?;
+  } else if let Some(emitter_pos) = emitter_pos {
+    if let Some((self_pos, self_rot)) = self_stuff {
+      let (emitter_pos, left_ear_pos, right_ear_pos) =
+        EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-          entity_emitters
-            .lock()
-            .push(EntityEmitter::new(entity_id, &sink));
-        }
-      }
+      let sink = chatsounds
+        .play_spatial(&sentence, emitter_pos, left_ear_pos, right_ear_pos)
+        .await?;
+
+      entity_emitters
+        .lock()
+        .push(EntityEmitter::new(entity_id, &sink));
     }
   }
+
+  Ok(())
 }
 
 impl IncomingEventListener for ChatsoundsEventListener {
