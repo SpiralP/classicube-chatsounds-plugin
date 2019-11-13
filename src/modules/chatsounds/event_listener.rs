@@ -118,7 +118,7 @@ impl ChatsoundsEventListener {
 
       // it doesn't matter if these are out of order so we just spawn
       FuturesModule::spawn_future(async move {
-        if let Err(e) = play_chatsound(
+        play_chatsound(
           entity_id,
           colorless_text,
           emitter_pos,
@@ -126,10 +126,7 @@ impl ChatsoundsEventListener {
           chatsounds,
           entity_emitters,
         )
-        .await
-        {
-          // TODO
-        }
+        .await;
       });
 
       // } else { print(format!("not found {}", full_nick)); }
@@ -144,34 +141,34 @@ pub async fn play_chatsound(
   self_stuff: Option<(Vec3, f32)>,
   mut chatsounds: FutureShared<Chatsounds>,
   mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
-) -> Result<(), String> {
+) {
   if sentence.to_lowercase() == "sh" {
     chatsounds.lock().await.stop_all();
     entity_emitters.lock().clear();
-    return Ok(());
+    return;
   }
 
   let mut chatsounds = chatsounds.lock().await;
 
   if entity_id == ENTITY_SELF_ID {
     // if self entity, play 2d sound
-    chatsounds.play(&sentence).await?;
+    let _ignore_error = chatsounds.play(&sentence).await;
   } else if let Some(emitter_pos) = emitter_pos {
     if let Some((self_pos, self_rot)) = self_stuff {
       let (emitter_pos, left_ear_pos, right_ear_pos) =
         EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
-      let sink = chatsounds
+      if let Ok(sink) = chatsounds
         .play_spatial(&sentence, emitter_pos, left_ear_pos, right_ear_pos)
-        .await?;
-
-      entity_emitters
-        .lock()
-        .push(EntityEmitter::new(entity_id, &sink));
+        .await
+      {
+        // don't print other's errors
+        entity_emitters
+          .lock()
+          .push(EntityEmitter::new(entity_id, &sink));
+      }
     }
   }
-
-  Ok(())
 }
 
 impl IncomingEventListener for ChatsoundsEventListener {
