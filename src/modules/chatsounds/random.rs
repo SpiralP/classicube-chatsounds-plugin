@@ -9,7 +9,7 @@ lazy_static! {
 
 // TODO synced reset on new player/etc
 
-pub fn rand_index<T>(vec: &[T], entity_id: u8) -> Option<&T> {
+pub fn get_rng(entity_id: u8) -> Box<dyn RngCore + Send> {
   let count = {
     let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
     let count = entity_counts.entry(entity_id).or_insert(0);
@@ -20,21 +20,29 @@ pub fn rand_index<T>(vec: &[T], entity_id: u8) -> Option<&T> {
 
   let id = entity_id as u64;
 
-  let mut rng = ChaChaRng::seed_from_u64(256 * id + count);
-
-  if vec.is_empty() {
-    None
-  } else {
-    let index: usize = rng.gen_range(0, vec.len());
-    Some(&vec[index])
-  }
+  Box::new(ChaChaRng::seed_from_u64(256 * id + count))
 }
 
 #[test]
 fn test_rand_index() {
-  println!("{:?}", rand_index(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 1));
-  println!("{:?}", rand_index(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 1));
-  println!("{:?}", rand_index(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 1));
-  println!("{:?}", rand_index(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 1));
-  println!("{:?}", rand_index(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 1));
+  println!(
+    "{:?}",
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
+  );
+  println!(
+    "{:?}",
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
+  );
+  println!(
+    "{:?}",
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
+  );
+  println!(
+    "{:?}",
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
+  );
+  println!(
+    "{:?}",
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
+  );
 }

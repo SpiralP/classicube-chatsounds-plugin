@@ -2,7 +2,7 @@ use super::entity_emitter::EntityEmitter;
 use crate::{
   helpers::remove_color,
   modules::{
-    chatsounds::random::rand_index,
+    chatsounds::random::get_rng,
     event_handler::{IncomingEvent, IncomingEventListener},
     FutureShared, FuturesModule, SyncShared, ThreadShared,
   },
@@ -152,14 +152,20 @@ pub async fn play_chatsound(
 
   if entity_id == ENTITY_SELF_ID {
     // if self entity, play 2d sound
-    let _ignore_error = chatsounds.play(&sentence).await;
+    let _ignore_error = chatsounds.play(&sentence, get_rng(entity_id)).await;
   } else if let Some(emitter_pos) = emitter_pos {
     if let Some((self_pos, self_rot)) = self_stuff {
       let (emitter_pos, left_ear_pos, right_ear_pos) =
         EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
 
       if let Ok(sink) = chatsounds
-        .play_spatial(&sentence, emitter_pos, left_ear_pos, right_ear_pos)
+        .play_spatial(
+          &sentence,
+          get_rng(entity_id),
+          emitter_pos,
+          left_ear_pos,
+          right_ear_pos,
+        )
         .await
       {
         // don't print other's errors
