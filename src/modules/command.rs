@@ -1,7 +1,7 @@
 use crate::{
   modules::{
-    chatsounds::VOLUME_NORMAL, ChatsoundsModule, EventHandlerModule, FutureShared, FuturesModule,
-    Module, OptionModule, SyncShared,
+    chatsounds::VOLUME_NORMAL, EventHandlerModule, FutureShared, FuturesModule, Module,
+    OptionModule, SyncShared,
   },
   printer::print,
 };
@@ -24,7 +24,7 @@ impl CommandModule {
   pub fn new(
     option_module: SyncShared<OptionModule>,
     event_handler_module: SyncShared<EventHandlerModule>,
-    mut chatsounds_module: SyncShared<ChatsoundsModule>,
+    chatsounds: FutureShared<Chatsounds>,
   ) -> Self {
     let owned_command = OwnedChatCommand::new(
       "Chatsounds",
@@ -32,8 +32,6 @@ impl CommandModule {
       false,
       vec![VOLUME_COMMAND_HELP, SH_COMMAND_HELP],
     );
-
-    let chatsounds = chatsounds_module.lock().chatsounds.clone();
 
     Self {
       owned_command,

@@ -65,7 +65,7 @@ pub fn load() {
     let command_module = SyncShared::new(CommandModule::new(
       option_module.clone(),
       event_handler_module.clone(),
-      chatsounds_module.clone(),
+      chatsounds_module.lock().chatsounds.clone(),
     ));
     modules.push(command_module);
 

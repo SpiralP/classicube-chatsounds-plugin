@@ -121,8 +121,6 @@ impl<T: ?Sized> Clone for FutureShared<T> {
 
 #[test]
 fn test_shared() {
-  println!("Hello, world!");
-
   {
     let mut shared = SyncShared::new(1);
     shared.with(|v| {
@@ -187,6 +185,7 @@ fn test_shared() {
   struct ModuleThing {}
   impl Module for ModuleThing {
     fn load(&mut self) {}
+
     fn unload(&mut self) {}
   }
 

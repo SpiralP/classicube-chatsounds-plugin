@@ -51,18 +51,18 @@ impl EntityEmitter {
   pub fn coords_to_sink_positions(
     emitter_pos: Vec3,
     self_pos: Vec3,
-    self_rot: f32,
+    self_rot_yaw: f32,
   ) -> ([f32; 3], [f32; 3], [f32; 3]) {
     use std::f32::consts::PI;
 
     let (left_sin, left_cos) = {
-      let ratio = self_rot / 360.0;
+      let ratio = self_rot_yaw / 360.0;
       let rot = ratio * (2.0 * PI) - PI;
       rot.sin_cos()
     };
 
     let (right_sin, right_cos) = {
-      let ratio = self_rot / 360.0;
+      let ratio = self_rot_yaw / 360.0;
       let rot = ratio * (2.0 * PI);
       rot.sin_cos()
     };
