@@ -9,7 +9,7 @@ use crate::{
   printer::print,
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{Entities, TabList, ENTITY_SELF_ID};
+use classicube_helpers::{Entities, TabList, TabListEntry, ENTITY_SELF_ID};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
 
 pub struct ChatsoundsEventListener {
@@ -35,9 +35,13 @@ impl ChatsoundsEventListener {
     }
   }
 
-  fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(u8, String)> {
+  fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(TabListEntry, String)> {
     if unsafe { Server.IsSinglePlayer } != 0 {
-      return Some((ENTITY_SELF_ID, full_msg));
+      // TODO test this unwrap
+      return Some((
+        self.tab_list.lock().get(ENTITY_SELF_ID).unwrap().clone(),
+        full_msg,
+      ));
     }
 
     if !full_msg.starts_with("> &f") {
@@ -75,8 +79,8 @@ impl ChatsoundsEventListener {
       self
         .tab_list
         .lock()
-        .find_entity_id_by_name(full_nick)
-        .map(|id| (id, said_text))
+        .find_entry_by_nick_name(full_nick)
+        .map(|entry| (entry.clone(), said_text))
     } else {
       None
     }
@@ -88,19 +92,13 @@ impl ChatsoundsEventListener {
       return;
     }
 
-    if let Some((entity_id, said_text)) = self.find_player_from_message(full_msg) {
-      let entities = self.entities.lock();
-
-      let real_name = {
-        let tab_list = self.tab_list.lock();
-        // unwrap ok because find_entity_id_by_name just returned using the entity_id
-        let entry = tab_list.get(entity_id).unwrap();
-
-        entry.get_real_name().unwrap()
-      };
+    if let Some((entry, said_text)) = self.find_player_from_message(full_msg) {
+      let real_name = entry.get_real_name().unwrap();
       random::update_chat_count(&real_name);
 
-      if let Some(entity) = entities.get(entity_id) {
+      let entities = self.entities.lock();
+      if let Some(entity) = entities.get(entry.get_id()) {
+        // if entity is in our map
         if let Some(self_entity) = entities.get(ENTITY_SELF_ID) {
           let colorless_text: String = remove_color(said_text).trim().to_string();
 
