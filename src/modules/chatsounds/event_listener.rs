@@ -1,4 +1,4 @@
-use super::entity_emitter::EntityEmitter;
+use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
   helpers::remove_color,
   modules::{
@@ -89,90 +89,93 @@ impl ChatsoundsEventListener {
     }
 
     if let Some((entity_id, said_text)) = self.find_player_from_message(full_msg) {
-      // print(format!("FOUND {} {}", entity_id, full_nick));
-
       let entities = self.entities.lock();
 
-      let (emitter_pos, self_stuff) = {
-        (
-          if let Some(entity) = entities.get(entity_id) {
-            Some(entity.get_position())
-          } else {
-            None
-          },
-          if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-            Some((entity.get_position(), entity.get_rot()[1]))
-          } else {
-            print(format!(
-              "couldn't get entity.get_pos/rot() {}",
-              ENTITY_SELF_ID
-            ));
-            None
-          },
-        )
+      let real_name = {
+        let tab_list = self.tab_list.lock();
+        // unwrap ok because find_entity_id_by_name just returned using the entity_id
+        let entry = tab_list.get(entity_id).unwrap();
+
+        entry.get_real_name().unwrap()
       };
+      random::update_chat_count(&real_name);
 
-      let chatsounds = self.chatsounds.clone();
-      let entity_emitters = self.entity_emitters.clone();
-      let colorless_text: String = remove_color(said_text).trim().to_string();
+      if let Some(entity) = entities.get(entity_id) {
+        if let Some(self_entity) = entities.get(ENTITY_SELF_ID) {
+          let colorless_text: String = remove_color(said_text).trim().to_string();
 
-      // it doesn't matter if these are out of order so we just spawn
-      FuturesModule::spawn_future(async move {
-        play_chatsound(
-          entity_id,
-          colorless_text,
-          emitter_pos,
-          self_stuff,
-          chatsounds,
-          entity_emitters,
-        )
-        .await;
-      });
+          let send_entity = SendEntity::from(entity);
 
-      // } else { print(format!("not found {}", full_nick)); }
+          let self_pos = self_entity.get_position();
+          let self_rot_yaw = self_entity.get_rot()[1];
+
+          let chatsounds = self.chatsounds.clone();
+          let entity_emitters = self.entity_emitters.clone();
+
+          // it doesn't matter if these are out of order so we just spawn
+          FuturesModule::spawn_future(async move {
+            play_chatsound(
+              colorless_text,
+              real_name,
+              send_entity,
+              self_pos,
+              self_rot_yaw,
+              chatsounds,
+              entity_emitters,
+            )
+            .await;
+          });
+        } else {
+          print("couldn't entities.get(ENTITY_SELF_ID)");
+        }
+      }
     }
   }
 }
 
 pub async fn play_chatsound(
-  entity_id: u8,
   sentence: String,
-  emitter_pos: Option<Vec3>,
-  self_stuff: Option<(Vec3, f32)>,
+  real_name: String,
+  entity: SendEntity,
+  self_pos: Vec3,
+  self_rot_yaw: f32,
   mut chatsounds: FutureShared<Chatsounds>,
   mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
+  let mut chatsounds = chatsounds.lock().await;
+
+  if chatsounds.volume() == 0.0 {
+    // don't even play the sound if we have 0 volume
+    return;
+  }
+
   if sentence.to_lowercase() == "sh" {
-    chatsounds.lock().await.stop_all();
+    chatsounds.stop_all();
     entity_emitters.lock().clear();
     return;
   }
 
-  let mut chatsounds = chatsounds.lock().await;
-
-  if entity_id == ENTITY_SELF_ID {
+  if entity.id == ENTITY_SELF_ID {
     // if self entity, play 2d sound
-    let _ignore_error = chatsounds.play(&sentence, get_rng(entity_id)).await;
-  } else if let Some(emitter_pos) = emitter_pos {
-    if let Some((self_pos, self_rot)) = self_stuff {
-      let (emitter_pos, left_ear_pos, right_ear_pos) =
-        EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
+    let _ignore_error = chatsounds.play(&sentence, get_rng(&real_name)).await;
+  } else {
+    let (emitter_pos, left_ear_pos, right_ear_pos) =
+      EntityEmitter::coords_to_sink_positions(entity.pos, self_pos, self_rot_yaw);
 
-      if let Ok(sink) = chatsounds
-        .play_spatial(
-          &sentence,
-          get_rng(entity_id),
-          emitter_pos,
-          left_ear_pos,
-          right_ear_pos,
-        )
-        .await
-      {
-        // don't print other's errors
-        entity_emitters
-          .lock()
-          .push(EntityEmitter::new(entity_id, &sink));
-      }
+    if let Ok(sink) = chatsounds
+      .play_spatial(
+        &sentence,
+        get_rng(&real_name),
+        emitter_pos,
+        left_ear_pos,
+        right_ear_pos,
+      )
+      .await
+    {
+      // don't print other's errors
+      entity_emitters
+        .lock()
+        .push(EntityEmitter::new(entity.id, &sink));
     }
   }
 }

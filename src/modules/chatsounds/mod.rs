@@ -1,6 +1,7 @@
 mod entity_emitter;
 mod event_listener;
 mod random;
+mod send_entity;
 
 use self::event_listener::ChatsoundsEventListener;
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
   printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{Entities, TabList};
+use classicube_helpers::{Entities, TabList, TabListEvent, TabListEventType};
 use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
@@ -41,13 +42,16 @@ const SOURCES: &[Source] = &[
 
 pub struct ChatsoundsModule {
   pub chatsounds: FutureShared<Chatsounds>,
+  entities: SyncShared<Entities>,
+  event_handler_module: SyncShared<EventHandlerModule>,
+  tab_list: SyncShared<TabList>,
 }
 
 impl ChatsoundsModule {
   pub fn new(
     mut option_module: SyncShared<OptionModule>,
     entities: SyncShared<Entities>,
-    mut event_handler_module: SyncShared<EventHandlerModule>,
+    event_handler_module: SyncShared<EventHandlerModule>,
     tab_list: SyncShared<TabList>,
   ) -> Self {
     let volume = option_module
@@ -66,7 +70,6 @@ impl ChatsoundsModule {
 
         let mut chatsounds = Chatsounds::new(path);
 
-        // TODO 0 volume shouldn't call play
         chatsounds.set_volume(VOLUME_NORMAL * volume);
 
         chatsounds
@@ -77,13 +80,12 @@ impl ChatsoundsModule {
 
     let chatsounds = FutureShared::new(chatsounds);
 
-    let chatsounds_event_listener =
-      ChatsoundsEventListener::new(tab_list, entities, chatsounds.clone());
-    event_handler_module
-      .lock()
-      .register_listener(chatsounds_event_listener);
-
-    Self { chatsounds }
+    Self {
+      chatsounds,
+      entities,
+      event_handler_module,
+      tab_list,
+    }
   }
 
   async fn load_sources(mut chatsounds: FutureShared<Chatsounds>) {
@@ -122,6 +124,26 @@ impl Module for ChatsoundsModule {
       ChatsoundsModule::load_sources(chatsounds).await;
 
       status("done fetching sources");
+    });
+
+    let chatsounds_event_listener = ChatsoundsEventListener::new(
+      self.tab_list.clone(),
+      self.entities.clone(),
+      self.chatsounds.clone(),
+    );
+
+    self
+      .event_handler_module
+      .lock()
+      .register_listener(chatsounds_event_listener);
+
+    self.tab_list.lock().on(TabListEventType::Added, |event| {
+      if let TabListEvent::Added(_entry) = event {
+        // whenever a new player joins, or someone changes map
+        // we try to sync the random
+        // resetting on map change could fix local map chat too?
+        random::sync_reset();
+      }
     });
   }
 

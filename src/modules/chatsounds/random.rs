@@ -1,48 +1,58 @@
 use lazy_static::lazy_static;
 use rand::prelude::*;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+  collections::{hash_map::DefaultHasher, HashMap},
+  hash::{Hash, Hasher},
+  sync::Mutex,
+};
 
+// TODO make this a field on ChatsoundsModule/EventListener
 lazy_static! {
-  pub static ref ENTITY_COUNTS: Mutex<HashMap<u8, usize>> = Mutex::new(HashMap::new());
+  pub static ref ENTITY_COUNTS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
 }
 
 // TODO synced reset on new player/etc
+// TODO self id is 255 but others don't see 255!!
 
-pub fn get_rng(entity_id: u8) -> Box<dyn RngCore + Send> {
-  let count = {
-    let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
-    let count = entity_counts.entry(entity_id).or_insert(0);
-    let n = *count as u64;
-    *count += 1;
-    n
-  };
-
-  let id = entity_id as u64;
-
-  Box::new(ChaChaRng::seed_from_u64(256 * id + count))
+pub fn sync_reset() {
+  let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
+  entity_counts.clear();
 }
 
-#[test]
-fn test_rand_index() {
-  println!(
-    "{:?}",
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
-  );
-  println!(
-    "{:?}",
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
-  );
-  println!(
-    "{:?}",
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
-  );
-  println!(
-    "{:?}",
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
-  );
-  println!(
-    "{:?}",
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].choose(&mut get_rng(1)),
-  );
+pub fn update_chat_count<S: AsRef<str>>(real_name: S) {
+  let real_name = real_name.as_ref();
+
+  let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
+  let count = entity_counts.entry(real_name.to_string()).or_insert(0);
+  *count += 1;
+}
+
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+  let mut s = DefaultHasher::new();
+  t.hash(&mut s);
+  s.finish()
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct HashedInfo<'a> {
+  real_name: &'a str,
+  messages_said: usize,
+}
+
+pub fn get_rng<S: AsRef<str>>(real_name: S) -> Box<dyn RngCore + Send> {
+  let real_name = real_name.as_ref();
+
+  // id isn't synced between players (since self is 255)
+  // so we use real_name as the unique, shared field
+
+  let mut entity_counts = ENTITY_COUNTS.lock().unwrap();
+  let messages_said = *entity_counts.entry(real_name.to_string()).or_insert(0);
+
+  let hash = calculate_hash(&HashedInfo {
+    real_name,
+    messages_said,
+  });
+
+  Box::new(ChaChaRng::seed_from_u64(hash))
 }
