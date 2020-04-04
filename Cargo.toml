@@ -1,6 +1,6 @@
 [package]
 name = "rust-classicube-chatsounds-plugin"
-version = "3.2.0"
+version = "3.2.1"
 authors = ["SpiralP <spiral.palmer@gmail.com>"]
 edition = "2018"
 
@@ -21,4 +21,4 @@ lazy_static = "1.4.0"
 parking_lot = "0.10.0"
 rand = "0.7.3"
 rand_chacha = "0.2.2"
-tokio = "0.2.16"
+tokio = { version = "0.2.16", features = ["full"] }

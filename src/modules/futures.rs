@@ -3,7 +3,7 @@ use futures::prelude::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::time::Duration;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 
 lazy_static! {
   static ref TOKIO_RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);
@@ -38,7 +38,11 @@ impl FuturesModule {
 
 impl Module for FuturesModule {
   fn load(&mut self) {
-    let rt = Runtime::new().expect("tokio Runtime::new()");
+    let rt = Builder::new()
+      .threaded_scheduler()
+      .enable_all()
+      .build()
+      .unwrap();
 
     let mut tokio_runtime = TOKIO_RUNTIME.lock();
     *tokio_runtime = Some(rt);
