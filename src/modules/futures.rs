@@ -2,6 +2,7 @@ use crate::modules::Module;
 use futures::prelude::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 
 lazy_static! {
@@ -28,9 +29,9 @@ impl FuturesModule {
   where
     F: Future<Output = T>,
   {
-    let tokio_runtime = TOKIO_RUNTIME.lock();
+    let mut tokio_runtime = TOKIO_RUNTIME.lock();
 
-    let rt = tokio_runtime.as_ref().expect("block_future: no runtime?");
+    let rt = tokio_runtime.as_mut().expect("block_future: no runtime?");
     rt.block_on(f)
   }
 }
@@ -47,7 +48,7 @@ impl Module for FuturesModule {
     let mut tokio_runtime = TOKIO_RUNTIME.lock();
 
     if let Some(rt) = tokio_runtime.take() {
-      rt.shutdown_now();
+      rt.shutdown_timeout(Duration::from_secs(2));
     }
   }
 }
