@@ -8,15 +8,12 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-arrayvec = "0.5.1"
-async-std = "1.5.0"
 chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git" }
 classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git" }
 classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
 crossbeam-channel = "0.4.2"
-detour = "0.7.1"
-futures-preview = { version = "0.3.0-alpha.19", features = ["async-await"] }
+futures = "0.3.4"
 lazy_static = "1.4.0"
 parking_lot = "0.10.0"
 rand = "0.7.3"

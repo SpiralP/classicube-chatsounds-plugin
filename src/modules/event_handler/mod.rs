@@ -2,15 +2,14 @@ mod callbacks;
 mod outgoing_events;
 mod types;
 
-use self::callbacks::{
-  on_chat_received, on_input_down, on_input_press, on_input_up, tick_detour, TICK_DETOUR,
-};
+use self::callbacks::{on_chat_received, on_input_down, on_input_press, on_input_up};
 pub use self::types::{IncomingEvent, OutgoingEvent};
 use crate::modules::Module;
+use classicube_helpers::{TickEventListener, TickEventType};
 use classicube_sys::{
   ChatEvents, Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat,
   Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInput,
-  Event_UnregisterInt, InputEvents, OwnedString, Server,
+  Event_UnregisterInt, InputEvents, OwnedString, ScheduledTask, Server,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -21,7 +20,9 @@ use std::{
   os::raw::{c_int, c_void},
 };
 
-// hack for tick_detour
+// TODO move this file logic to helpers lib so that we don't have 2 layers of event handlers
+
+// hack so that our tick detour can fire tick events
 thread_local!(
   static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = Cell::new(None);
 );
@@ -41,6 +42,7 @@ pub struct EventHandlerModule {
   incoming_event_listeners: Vec<Box<dyn IncomingEventListener>>,
   outgoing_event_sender: Option<Sender<OutgoingEvent>>,
   outgoing_event_receiver: Receiver<OutgoingEvent>,
+  tick_callback: Option<TickEventListener>,
 }
 
 impl EventHandlerModule {
@@ -52,6 +54,7 @@ impl EventHandlerModule {
       incoming_event_listeners: Vec::new(),
       outgoing_event_sender: Some(outgoing_event_sender),
       outgoing_event_receiver,
+      tick_callback: None,
     }
   }
 
@@ -141,23 +144,31 @@ impl Module for EventHandlerModule {
       );
     }
 
-    unsafe {
-      if Server.IsSinglePlayer == 0 {
-        if let Some(tick_original) = Server.Tick {
-          TICK_DETOUR.initialize(tick_original, tick_detour).unwrap();
-          TICK_DETOUR.enable().unwrap();
+    let mut tick_callback = TickEventListener::register();
+    tick_callback.on(TickEventType::Tick, |_event| {
+      EVENT_HANDLER_MODULE.with(|maybe_ptr| {
+        if let Some(ptr) = maybe_ptr.get() {
+          let event_handler = unsafe { &mut *ptr };
+          event_handler.handle_incoming_event(IncomingEvent::Tick);
+          event_handler.handle_outgoing_events();
         }
-      }
-    }
+      });
+    });
+
+    self.tick_callback = Some(tick_callback);
 
     EVENT_HANDLER_MODULE.with(|cell| {
-      cell.set(Some(self as _));
+      cell.set(Some(ptr));
     });
   }
 
   fn unload(&mut self) {
-    unsafe {
-      let _ = TICK_DETOUR.disable();
+    EVENT_HANDLER_MODULE.with(|cell| {
+      cell.take();
+    });
+
+    {
+      self.tick_callback.take();
     }
 
     let ptr: *mut EventHandlerModule = self;
@@ -180,9 +191,5 @@ impl Module for EventHandlerModule {
         Some(on_input_press),
       );
     }
-
-    EVENT_HANDLER_MODULE.with(|cell| {
-      cell.take();
-    });
   }
 }

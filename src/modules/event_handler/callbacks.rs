@@ -1,37 +1,12 @@
 // interact directly with the C functions, converting primitives to rust types
 
-use super::{IncomingEvent, EVENT_HANDLER_MODULE};
+use super::IncomingEvent;
 use crate::modules::EventHandlerModule;
 use classicube_sys::{Key, MsgType, ScheduledTask};
-use detour::static_detour;
 use std::{
   cell::Cell,
   os::raw::{c_int, c_void},
 };
-
-thread_local!(
-  pub static SIMULATING: Cell<bool> = Cell::new(false);
-);
-
-static_detour! {
-  pub static TICK_DETOUR: unsafe extern "C" fn(*mut ScheduledTask);
-}
-
-pub fn tick_detour(task: *mut ScheduledTask) {
-  unsafe {
-    // call original Server.Tick
-    TICK_DETOUR.call(task);
-  }
-
-  EVENT_HANDLER_MODULE.with(|maybe_ptr| {
-    if let Some(ptr) = maybe_ptr.get() {
-      let module = unsafe { &mut *ptr };
-
-      module.handle_incoming_event(IncomingEvent::Tick);
-      module.handle_outgoing_events();
-    }
-  });
-}
 
 pub extern "C" fn on_chat_received(
   obj: *mut c_void,

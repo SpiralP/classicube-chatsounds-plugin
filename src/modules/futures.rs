@@ -52,7 +52,7 @@ impl Module for FuturesModule {
     let mut tokio_runtime = TOKIO_RUNTIME.lock();
 
     if let Some(rt) = tokio_runtime.take() {
-      rt.shutdown_timeout(Duration::from_secs(2));
+      rt.shutdown_timeout(Duration::from_secs(1));
     }
   }
 }
