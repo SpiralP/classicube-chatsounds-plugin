@@ -2,7 +2,7 @@
 
 use super::{IncomingEvent, EVENT_HANDLER_MODULE};
 use crate::modules::EventHandlerModule;
-use classicube_sys::{Key_, MsgType, ScheduledTask};
+use classicube_sys::{Key, MsgType, ScheduledTask};
 use detour::static_detour;
 use std::{
   cell::Cell,
@@ -67,7 +67,7 @@ pub extern "C" fn on_input_down(obj: *mut c_void, key: c_int, repeat: u8) {
     return;
   }
 
-  let key = key as Key_;
+  let key = key as Key;
 
   module.handle_incoming_event(IncomingEvent::InputDown(key, repeat != 0));
   module.handle_outgoing_events();
@@ -81,7 +81,7 @@ pub extern "C" fn on_input_up(obj: *mut c_void, key: c_int) {
     return;
   }
 
-  let key = key as Key_;
+  let key = key as Key;
 
   module.handle_incoming_event(IncomingEvent::InputUp(key));
   module.handle_outgoing_events();

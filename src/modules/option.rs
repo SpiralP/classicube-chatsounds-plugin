@@ -1,13 +1,13 @@
 use crate::modules::Module;
 use classicube_sys::{
-  keybindNames, Input_Names, KeyBind_Defaults, Key_, Options_Get, Options_Set, OwnedString,
+  keybindNames, Input_Names, Key, KeyBind_Defaults, Options_Get, Options_Set, OwnedString,
   STRING_SIZE,
 };
 use std::{collections::HashMap, ffi::CString, os::raw::c_char};
 
 pub struct OptionModule {
-  pub open_chat_key: Option<Key_>,
-  pub send_chat_key: Option<Key_>,
+  pub open_chat_key: Option<Key>,
+  pub send_chat_key: Option<Key>,
 }
 
 impl OptionModule {
@@ -18,13 +18,13 @@ impl OptionModule {
     }
   }
 
-  pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key_> {
+  pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<Key> {
     let s = s.as_ref();
 
     Input_Names
       .iter()
       .position(|&item| item == s)
-      .map(|n| n as Key_)
+      .map(|n| n as Key)
   }
 
   pub fn get<S: Into<Vec<u8>>>(&self, key: S) -> Option<String> {
@@ -61,7 +61,7 @@ impl OptionModule {
     }
   }
 
-  fn get_all_keybinds(&self) -> HashMap<&'static str, Key_> {
+  fn get_all_keybinds(&self) -> HashMap<&'static str, Key> {
     let mut map = HashMap::with_capacity(keybindNames.len());
 
     for (i, keybind_name) in keybindNames.iter().copied().enumerate() {
@@ -70,7 +70,7 @@ impl OptionModule {
       let key = self
         .get(option_name)
         .and_then(|key_name| OptionModule::get_key_from_input_name(&key_name))
-        .unwrap_or_else(|| KeyBind_Defaults[i] as Key_);
+        .unwrap_or_else(|| KeyBind_Defaults[i] as Key);
 
       map.insert(keybind_name, key);
     }

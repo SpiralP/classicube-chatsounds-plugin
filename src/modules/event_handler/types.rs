@@ -1,4 +1,4 @@
-use classicube_sys::{Key_, MsgType};
+use classicube_sys::{Key, MsgType};
 
 // TODO should these be 1 enum? Event_Emit?
 /// comes from main thread
@@ -6,8 +6,8 @@ use classicube_sys::{Key_, MsgType};
 pub enum IncomingEvent {
   Tick,
   ChatReceived(String, MsgType),
-  InputDown(Key_, bool),
-  InputUp(Key_),
+  InputDown(Key, bool),
+  InputUp(Key),
   InputPress(char),
 }
 
@@ -16,7 +16,7 @@ pub enum IncomingEvent {
 pub enum OutgoingEvent {
   ChatAdd(String),
   ChatAddOf(String, MsgType),
-  InputDown(Key_, bool),
-  InputUp(Key_),
+  InputDown(Key, bool),
+  InputUp(Key),
   InputPress(char),
 }
