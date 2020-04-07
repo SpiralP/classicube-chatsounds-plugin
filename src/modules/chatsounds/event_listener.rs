@@ -40,8 +40,9 @@ impl ChatsoundsEventListener {
 
   fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(TabListEntry, String)> {
     if unsafe { Server.IsSinglePlayer } != 0 {
-      // TODO test this unwrap
-      return Some((*self.tab_list.lock().get(ENTITY_SELF_ID).unwrap(), full_msg));
+      // TODO in singleplayer there is no tab list, even self id is null
+
+      return None;
     }
 
     if !full_msg.starts_with("> &f") {
