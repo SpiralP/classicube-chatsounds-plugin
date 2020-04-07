@@ -2,11 +2,8 @@
 
 use super::IncomingEvent;
 use crate::modules::EventHandlerModule;
-use classicube_sys::{Key, MsgType, ScheduledTask};
-use std::{
-  cell::Cell,
-  os::raw::{c_int, c_void},
-};
+use classicube_sys::{Key, MsgType};
+use std::os::raw::{c_int, c_void};
 
 pub extern "C" fn on_chat_received(
   obj: *mut c_void,

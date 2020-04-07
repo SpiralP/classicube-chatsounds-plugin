@@ -3,13 +3,13 @@ mod outgoing_events;
 mod types;
 
 use self::callbacks::{on_chat_received, on_input_down, on_input_press, on_input_up};
-pub use self::types::{IncomingEvent, OutgoingEvent};
+pub use self::types::*;
 use crate::modules::Module;
-use classicube_helpers::{TickEventListener, TickEventType};
+use classicube_helpers::event_handler::tick::TickEventHandler;
 use classicube_sys::{
   ChatEvents, Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat,
   Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInput,
-  Event_UnregisterInt, InputEvents, OwnedString, ScheduledTask, Server,
+  Event_UnregisterInt, InputEvents, OwnedString,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -42,7 +42,7 @@ pub struct EventHandlerModule {
   incoming_event_listeners: Vec<Box<dyn IncomingEventListener>>,
   outgoing_event_sender: Option<Sender<OutgoingEvent>>,
   outgoing_event_receiver: Receiver<OutgoingEvent>,
-  tick_callback: Option<TickEventListener>,
+  tick_callback: Option<TickEventHandler>,
 }
 
 impl EventHandlerModule {
@@ -105,7 +105,7 @@ impl EventHandlerModule {
       },
 
       OutgoingEvent::InputDown(key, repeat) => unsafe {
-        Event_RaiseInput(&mut InputEvents.Down, key as _, repeat);
+        Event_RaiseInput(&mut InputEvents.Down, key as _, if repeat { 1 } else { 0 });
       },
 
       OutgoingEvent::InputUp(key) => unsafe {
@@ -144,8 +144,8 @@ impl Module for EventHandlerModule {
       );
     }
 
-    let mut tick_callback = TickEventListener::register();
-    tick_callback.on(TickEventType::Tick, |_event| {
+    let mut tick_callback = TickEventHandler::new();
+    tick_callback.on(|_event| {
       EVENT_HANDLER_MODULE.with(|maybe_ptr| {
         if let Some(ptr) = maybe_ptr.get() {
           let event_handler = unsafe { &mut *ptr };

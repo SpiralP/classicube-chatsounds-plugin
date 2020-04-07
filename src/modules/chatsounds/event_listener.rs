@@ -9,7 +9,10 @@ use crate::{
   printer::print,
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{Entities, TabList, TabListEntry, ENTITY_SELF_ID};
+use classicube_helpers::{
+  entities::{Entities, ENTITY_SELF_ID},
+  tab_list::{TabList, TabListEntry},
+};
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
 
 pub struct ChatsoundsEventListener {
@@ -38,10 +41,7 @@ impl ChatsoundsEventListener {
   fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(TabListEntry, String)> {
     if unsafe { Server.IsSinglePlayer } != 0 {
       // TODO test this unwrap
-      return Some((
-        self.tab_list.lock().get(ENTITY_SELF_ID).unwrap().clone(),
-        full_msg,
-      ));
+      return Some((*self.tab_list.lock().get(ENTITY_SELF_ID).unwrap(), full_msg));
     }
 
     if !full_msg.starts_with("> &f") {
@@ -80,7 +80,7 @@ impl ChatsoundsEventListener {
         .tab_list
         .lock()
         .find_entry_by_nick_name(full_nick)
-        .map(|entry| (entry.clone(), said_text))
+        .map(|entry| (*entry, said_text))
     } else {
       None
     }

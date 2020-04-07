@@ -1,6 +1,6 @@
 use crate::modules::SyncShared;
 use chatsounds::SpatialSink;
-use classicube_helpers::{Entities, ENTITY_SELF_ID};
+use classicube_helpers::entities::{Entities, ENTITY_SELF_ID};
 use classicube_sys::Vec3;
 use std::sync::{Arc, Weak};
 

@@ -85,7 +85,7 @@ impl AutocompleteEventListener {
 impl IncomingEventListener for AutocompleteEventListener {
   fn handle_incoming_event(&mut self, event: &IncomingEvent) {
     match event {
-      IncomingEvent::InputPress(_) | IncomingEvent::InputDown(_, _) | IncomingEvent::InputUp(_) => {
+      IncomingEvent::InputPress(_) | IncomingEvent::InputDown(..) | IncomingEvent::InputUp(_) => {
         // TODO somehow block here on tab key_down
 
         // send and process in the same order

@@ -1,4 +1,4 @@
-use classicube_helpers::Entity;
+use classicube_helpers::entities::Entity;
 use classicube_sys::Vec3;
 
 /// so that we capture and send entity data through futures/threads

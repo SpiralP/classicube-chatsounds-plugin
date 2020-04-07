@@ -6,14 +6,16 @@ mod send_entity;
 use self::event_listener::ChatsoundsEventListener;
 use crate::{
   modules::{
-    command::VOLUME_SETTING_NAME,
-    shared::{FutureShared, SyncShared},
-    EventHandlerModule, FuturesModule, Module, OptionModule,
+    command::VOLUME_SETTING_NAME, EventHandlerModule, FuturesModule, Module, OptionModule,
   },
   printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{Entities, TabList, TabListEvent, TabListEventType};
+use classicube_helpers::{
+  entities::Entities,
+  shared::{FutureShared, SyncShared},
+  tab_list::TabList,
+};
 use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
@@ -137,13 +139,11 @@ impl Module for ChatsoundsModule {
       .lock()
       .register_listener(chatsounds_event_listener);
 
-    self.tab_list.lock().on(TabListEventType::Added, |event| {
-      if let TabListEvent::Added(_entry) = event {
-        // whenever a new player joins, or someone changes map
-        // we try to sync the random
-        // resetting on map change could fix local map chat too?
-        random::sync_reset();
-      }
+    self.tab_list.lock().on_added(|_event| {
+      // whenever a new player joins, or someone changes map
+      // we try to sync the random
+      // resetting on map change could fix local map chat too?
+      random::sync_reset();
     });
   }
 
