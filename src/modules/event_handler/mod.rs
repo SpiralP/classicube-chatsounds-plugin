@@ -3,9 +3,11 @@ mod types;
 
 pub use self::types::*;
 use crate::modules::Module;
-use classicube_helpers::event_handler::{
-  chat::{ChatReceivedEvent, ChatReceivedEventHandler},
-  input,
+use classicube_helpers::{
+  events::{
+    chat::{ChatReceivedEvent, ChatReceivedEventHandler},
+    input,
+  },
   tick::TickEventHandler,
 };
 use classicube_sys::{

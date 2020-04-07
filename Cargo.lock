@@ -318,7 +318,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#48a3518f65a8e8eaecce76a70fa155b2d29200ec"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#b1d6bee06ef75c0d7d1d65af77edf80eafd836de"
 dependencies = [
  "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
  "detour 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1735,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "rust-classicube-chatsounds-plugin"
-version = "3.3.0"
+version = "3.4.0"
 dependencies = [
  "chatsounds 0.1.0 (git+https://github.com/SpiralP/rust-chatsounds.git)",
  "classicube-helpers 0.1.0 (git+https://github.com/SpiralP/rust-classicube-helpers.git)",
