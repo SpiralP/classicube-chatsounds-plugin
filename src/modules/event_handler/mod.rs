@@ -1,31 +1,21 @@
-mod callbacks;
 mod outgoing_events;
 mod types;
 
-use self::callbacks::{on_chat_received, on_input_down, on_input_press, on_input_up};
 pub use self::types::*;
 use crate::modules::Module;
-use classicube_helpers::event_handler::tick::TickEventHandler;
+use classicube_helpers::event_handler::{
+  chat::{ChatReceivedEvent, ChatReceivedEventHandler},
+  input,
+  tick::TickEventHandler,
+};
 use classicube_sys::{
-  ChatEvents, Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, Event_RegisterChat,
-  Event_RegisterInput, Event_RegisterInt, Event_UnregisterChat, Event_UnregisterInput,
-  Event_UnregisterInt, InputEvents, OwnedString,
+  Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputEvents, OwnedString,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 pub use outgoing_events::*;
 use parking_lot::Mutex;
-use std::{
-  cell::Cell,
-  os::raw::{c_int, c_void},
-};
-
-// TODO move this file logic to helpers lib so that we don't have 2 layers of event handlers
-
-// hack so that our tick detour can fire tick events
-thread_local!(
-  static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = Cell::new(None);
-);
+use std::os::raw::c_int;
 
 lazy_static! {
   pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
@@ -42,7 +32,11 @@ pub struct EventHandlerModule {
   incoming_event_listeners: Vec<Box<dyn IncomingEventListener>>,
   outgoing_event_sender: Option<Sender<OutgoingEvent>>,
   outgoing_event_receiver: Receiver<OutgoingEvent>,
-  tick_callback: Option<TickEventHandler>,
+  chat_received: ChatReceivedEventHandler,
+  input_down: input::DownEventHandler,
+  input_press: input::PressEventHandler,
+  input_up: input::UpEventHandler,
+  tick_callback: TickEventHandler,
 }
 
 impl EventHandlerModule {
@@ -54,7 +48,11 @@ impl EventHandlerModule {
       incoming_event_listeners: Vec::new(),
       outgoing_event_sender: Some(outgoing_event_sender),
       outgoing_event_receiver,
-      tick_callback: None,
+      chat_received: ChatReceivedEventHandler::new(),
+      input_down: input::DownEventHandler::new(),
+      input_press: input::PressEventHandler::new(),
+      input_up: input::UpEventHandler::new(),
+      tick_callback: TickEventHandler::new(),
     }
   }
 
@@ -122,74 +120,76 @@ impl Module for EventHandlerModule {
       *outgoing_sender = self.outgoing_event_sender.take();
     }
 
-    // TODO should this be Pin??
+    // TODO maybe use UnsafeCell here so we're a little safer?
+    // or describe why we can use pointers here
     let ptr: *mut EventHandlerModule = self;
-    unsafe {
-      Event_RegisterChat(
-        &mut ChatEvents.ChatReceived,
-        ptr as *mut c_void,
-        Some(on_chat_received),
-      );
 
-      Event_RegisterInput(
-        &mut InputEvents.Down,
-        ptr as *mut c_void,
-        Some(on_input_down),
-      );
-      Event_RegisterInt(&mut InputEvents.Up, ptr as *mut c_void, Some(on_input_up));
-      Event_RegisterInt(
-        &mut InputEvents.Press,
-        ptr as *mut c_void,
-        Some(on_input_press),
-      );
-    }
+    self.chat_received.on(
+      move |ChatReceivedEvent {
+              message,
+              message_type,
+            }| {
+        let module = ptr as *mut EventHandlerModule;
+        let module = unsafe { &mut *module };
 
-    let mut tick_callback = TickEventHandler::new();
-    tick_callback.on(|_event| {
-      EVENT_HANDLER_MODULE.with(|maybe_ptr| {
-        if let Some(ptr) = maybe_ptr.get() {
-          let event_handler = unsafe { &mut *ptr };
-          event_handler.handle_incoming_event(IncomingEvent::Tick);
-          event_handler.handle_outgoing_events();
+        if module.simulating {
+          return;
         }
+
+        module.handle_incoming_event(IncomingEvent::ChatReceived(
+          message.to_string(),
+          *message_type,
+        ));
+        module.handle_outgoing_events();
+      },
+    );
+
+    self
+      .input_down
+      .on(move |input::DownEvent { key, repeating }| {
+        let module = ptr as *mut EventHandlerModule;
+        let module = unsafe { &mut *module };
+
+        if module.simulating {
+          return;
+        }
+
+        module.handle_incoming_event(IncomingEvent::InputDown(*key, *repeating));
+        module.handle_outgoing_events();
       });
+
+    self.input_press.on(move |input::PressEvent { key }| {
+      let module = ptr as *mut EventHandlerModule;
+      let module = unsafe { &mut *module };
+
+      if module.simulating {
+        return;
+      }
+
+      module.handle_incoming_event(IncomingEvent::InputPress(*key));
+      module.handle_outgoing_events();
     });
 
-    self.tick_callback = Some(tick_callback);
+    self.input_up.on(move |input::UpEvent { key }| {
+      let module = ptr as *mut EventHandlerModule;
+      let module = unsafe { &mut *module };
 
-    EVENT_HANDLER_MODULE.with(|cell| {
-      cell.set(Some(ptr));
+      if module.simulating {
+        return;
+      }
+
+      module.handle_incoming_event(IncomingEvent::InputUp(*key));
+      module.handle_outgoing_events();
+    });
+
+    self.tick_callback.on(move |_event| {
+      let module = ptr as *mut EventHandlerModule;
+      let module = unsafe { &mut *module };
+
+      module.handle_incoming_event(IncomingEvent::Tick);
+      module.handle_outgoing_events();
     });
   }
 
-  fn unload(&mut self) {
-    EVENT_HANDLER_MODULE.with(|cell| {
-      cell.take();
-    });
-
-    {
-      self.tick_callback.take();
-    }
-
-    let ptr: *mut EventHandlerModule = self;
-    unsafe {
-      Event_UnregisterChat(
-        &mut ChatEvents.ChatReceived,
-        ptr as *mut c_void,
-        Some(on_chat_received),
-      );
-
-      Event_UnregisterInput(
-        &mut InputEvents.Down,
-        ptr as *mut c_void,
-        Some(on_input_down),
-      );
-      Event_UnregisterInt(&mut InputEvents.Up, ptr as *mut c_void, Some(on_input_up));
-      Event_UnregisterInt(
-        &mut InputEvents.Press,
-        ptr as *mut c_void,
-        Some(on_input_press),
-      );
-    }
-  }
+  fn unload(&mut self) {}
 }

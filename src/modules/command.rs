@@ -9,6 +9,8 @@ use chatsounds::Chatsounds;
 use classicube_sys::{Commands_Register, OwnedChatCommand};
 use std::{cell::Cell, os::raw::c_int, slice};
 
+// TODO move file to helpers
+
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";

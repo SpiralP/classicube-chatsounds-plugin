@@ -318,7 +318,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#5fa24ee41264198aa18158949a562406cba65d1b"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#48a3518f65a8e8eaecce76a70fa155b2d29200ec"
 dependencies = [
  "classicube-sys 0.1.0 (git+https://github.com/SpiralP/rust-classicube-sys.git)",
  "detour 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
