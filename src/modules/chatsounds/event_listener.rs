@@ -11,7 +11,7 @@ use crate::{
 use chatsounds::Chatsounds;
 use classicube_helpers::{
   entities::{Entities, ENTITY_SELF_ID},
-  tab_list::{TabList, TabListEntry},
+  tab_list::TabList,
 };
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
 
@@ -38,11 +38,11 @@ impl ChatsoundsEventListener {
     }
   }
 
-  fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(TabListEntry, String)> {
+  fn find_player_from_message(&mut self, mut full_msg: String) -> Option<(u8, String, String)> {
     if unsafe { Server.IsSinglePlayer } != 0 {
-      // TODO in singleplayer there is no tab list, even self id is null
+      // in singleplayer there is no tab list, even self id infos are null
 
-      return None;
+      return Some((ENTITY_SELF_ID, String::new(), full_msg));
     }
 
     if !full_msg.starts_with("> &f") {
@@ -81,7 +81,7 @@ impl ChatsoundsEventListener {
         .tab_list
         .lock()
         .find_entry_by_nick_name(full_nick)
-        .map(|entry| (*entry, said_text))
+        .map(|entry| (entry.get_id(), entry.get_real_name().unwrap(), said_text))
     } else {
       None
     }
@@ -93,12 +93,11 @@ impl ChatsoundsEventListener {
       return;
     }
 
-    if let Some((entry, said_text)) = self.find_player_from_message(full_msg) {
-      let real_name = entry.get_real_name().unwrap();
+    if let Some((id, real_name, said_text)) = self.find_player_from_message(full_msg) {
       random::update_chat_count(&real_name);
 
       let entities = self.entities.lock();
-      if let Some(entity) = entities.get(entry.get_id()) {
+      if let Some(entity) = entities.get(id) {
         // if entity is in our map
         if let Some(self_entity) = entities.get(ENTITY_SELF_ID) {
           let colorless_text: String = remove_color(said_text).trim().to_string();
