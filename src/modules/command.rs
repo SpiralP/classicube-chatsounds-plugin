@@ -7,7 +7,7 @@ use crate::{
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{Commands_Register, OwnedChatCommand};
-use std::{cell::Cell, os::raw::c_int, slice};
+use std::{cell::Cell, os::raw::c_int, pin::Pin, slice};
 
 // TODO move file to helpers
 
@@ -16,7 +16,7 @@ const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Defau
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 pub struct CommandModule {
-  owned_command: OwnedChatCommand,
+  owned_command: Pin<Box<OwnedChatCommand>>,
   option_module: SyncShared<OptionModule>,
   event_handler_module: SyncShared<EventHandlerModule>,
   chatsounds: FutureShared<Chatsounds>,
