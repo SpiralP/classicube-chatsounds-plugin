@@ -1,9 +1,11 @@
 mod helpers;
+mod logger;
 mod modules;
 mod printer;
 
 use classicube_sys::IGameComponent;
 use lazy_static::lazy_static;
+use log::debug;
 use parking_lot::Mutex;
 use std::{os::raw::c_int, ptr};
 
@@ -19,6 +21,9 @@ extern "C" fn init() {
       color_backtrace::Settings::new().verbosity(color_backtrace::Verbosity::Full),
     );
 
+    logger::initialize(true, false);
+
+    debug!("modules::load()");
     modules::load();
   }
 
