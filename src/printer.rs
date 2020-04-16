@@ -63,12 +63,10 @@ pub fn print<T: Into<String>>(s: T) {
 
 pub fn status<T: Into<String>>(s: T) {
   let s = s.into();
-  info!("{}", s);
   PRINTER.lock().status(s);
 }
 
 pub fn status_forever<T: Into<String>>(s: T) {
   let s = s.into();
-  info!("{}", s);
   PRINTER.lock().status_forever(s);
 }

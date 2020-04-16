@@ -13,14 +13,14 @@ use futures::{
 
 pub struct AutocompleteModule {
   option_module: SyncShared<OptionModule>,
-  chatsounds: FutureShared<Chatsounds>,
+  chatsounds: FutureShared<Option<Chatsounds>>,
   event_handler_module: SyncShared<EventHandlerModule>,
 }
 
 impl AutocompleteModule {
   pub fn new(
     option_module: SyncShared<OptionModule>,
-    chatsounds: FutureShared<Chatsounds>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
     event_handler_module: SyncShared<EventHandlerModule>,
   ) -> Self {
     Self {
@@ -52,7 +52,7 @@ pub struct AutocompleteEventListener {
 impl AutocompleteEventListener {
   pub fn new(
     option_module: SyncShared<OptionModule>,
-    chatsounds: FutureShared<Chatsounds>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
     let (sender, mut receiver) = unbounded();
 

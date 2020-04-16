@@ -16,7 +16,7 @@ use classicube_helpers::{
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
 
 pub struct ChatsoundsEventListener {
-  chatsounds: FutureShared<Chatsounds>,
+  chatsounds: FutureShared<Option<Chatsounds>>,
   entity_emitters: ThreadShared<Vec<EntityEmitter>>,
   chat_last: Option<String>,
   tab_list: SyncShared<TabList>,
@@ -27,7 +27,7 @@ impl ChatsoundsEventListener {
   pub fn new(
     tab_list: SyncShared<TabList>,
     entities: SyncShared<Entities>,
-    chatsounds: FutureShared<Chatsounds>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
     Self {
       chatsounds,
@@ -137,10 +137,11 @@ pub async fn play_chatsound(
   entity: SendEntity,
   self_pos: Vec3,
   self_rot_yaw: f32,
-  mut chatsounds: FutureShared<Chatsounds>,
+  mut chatsounds: FutureShared<Option<Chatsounds>>,
   mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
   let mut chatsounds = chatsounds.lock().await;
+  let chatsounds = chatsounds.as_mut().unwrap();
 
   if chatsounds.volume() == 0.0 {
     // don't even play the sound if we have 0 volume

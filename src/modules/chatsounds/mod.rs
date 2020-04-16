@@ -43,54 +43,30 @@ const SOURCES: &[Source] = &[
 ];
 
 pub struct ChatsoundsModule {
-  pub chatsounds: FutureShared<Chatsounds>,
+  pub chatsounds: FutureShared<Option<Chatsounds>>,
   entities: SyncShared<Entities>,
   event_handler_module: SyncShared<EventHandlerModule>,
   tab_list: SyncShared<TabList>,
+  option_module: SyncShared<OptionModule>,
 }
 
 impl ChatsoundsModule {
   pub fn new(
-    mut option_module: SyncShared<OptionModule>,
+    option_module: SyncShared<OptionModule>,
     entities: SyncShared<Entities>,
     event_handler_module: SyncShared<EventHandlerModule>,
     tab_list: SyncShared<TabList>,
   ) -> Self {
-    let volume = option_module
-      .lock()
-      .get(VOLUME_SETTING_NAME)
-      .and_then(|s| s.parse().ok())
-      .unwrap_or(1.0);
-
-    let chatsounds = {
-      if fs::metadata("plugins")
-        .map(|meta| meta.is_dir())
-        .unwrap_or(false)
-      {
-        let path = Path::new("plugins/chatsounds");
-        fs::create_dir_all(path).unwrap();
-
-        let mut chatsounds = Chatsounds::new(path);
-
-        chatsounds.set_volume(VOLUME_NORMAL * volume);
-
-        chatsounds
-      } else {
-        panic!("plugins not a dir?");
-      }
-    };
-
-    let chatsounds = FutureShared::new(chatsounds);
-
     Self {
-      chatsounds,
+      chatsounds: FutureShared::new(None),
       entities,
       event_handler_module,
       tab_list,
+      option_module,
     }
   }
 
-  async fn load_sources(mut chatsounds: FutureShared<Chatsounds>) {
+  async fn load_sources(mut chatsounds: FutureShared<Option<Chatsounds>>) {
     let sources_len = SOURCES.len();
     for (i, source) in SOURCES.iter().enumerate() {
       let (repo, repo_path) = match source {
@@ -108,8 +84,20 @@ impl ChatsoundsModule {
       let mut chatsounds = chatsounds.lock().await;
 
       match source {
-        Source::Api(repo, repo_path) => chatsounds.load_github_api(repo, repo_path).await,
-        Source::Msgpack(repo, repo_path) => chatsounds.load_github_msgpack(repo, repo_path).await,
+        Source::Api(repo, repo_path) => {
+          chatsounds
+            .as_mut()
+            .unwrap()
+            .load_github_api(repo, repo_path)
+            .await
+        }
+        Source::Msgpack(repo, repo_path) => {
+          chatsounds
+            .as_mut()
+            .unwrap()
+            .load_github_msgpack(repo, repo_path)
+            .await
+        }
       }
     }
   }
@@ -119,11 +107,38 @@ impl Module for ChatsoundsModule {
   fn load(&mut self) {
     print(format!("Loading Chatsounds v{}", env!("CARGO_PKG_VERSION")));
 
-    let chatsounds = self.chatsounds.clone();
-    FuturesModule::spawn_future(async {
+    let volume = self
+      .option_module
+      .lock()
+      .get(VOLUME_SETTING_NAME)
+      .and_then(|s| s.parse().ok())
+      .unwrap_or(1.0);
+
+    let mut chatsounds_option = self.chatsounds.clone();
+    FuturesModule::spawn_future(async move {
+      let chatsounds = {
+        if fs::metadata("plugins")
+          .map(|meta| meta.is_dir())
+          .unwrap_or(false)
+        {
+          let path = Path::new("plugins/chatsounds");
+          fs::create_dir_all(path).unwrap();
+
+          let mut chatsounds = Chatsounds::new(path);
+
+          chatsounds.set_volume(VOLUME_NORMAL * volume);
+
+          chatsounds
+        } else {
+          panic!("plugins not a dir?");
+        }
+      };
+
+      *chatsounds_option.lock().await = Some(chatsounds);
+
       status("chatsounds fetching sources...");
 
-      ChatsoundsModule::load_sources(chatsounds).await;
+      ChatsoundsModule::load_sources(chatsounds_option).await;
 
       status("done fetching sources");
     });

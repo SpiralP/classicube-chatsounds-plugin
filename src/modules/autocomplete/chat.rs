@@ -33,13 +33,13 @@ pub struct Chat {
   open_chat_key: Key,
   send_chat_key: Key,
 
-  chatsounds: FutureShared<Chatsounds>,
+  chatsounds: FutureShared<Option<Chatsounds>>,
 }
 
 impl Chat {
   pub fn new(
     mut option_module: SyncShared<OptionModule>,
-    chatsounds: FutureShared<Chatsounds>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
     let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0 as _);
     let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0 as _);
@@ -75,6 +75,8 @@ impl Chat {
         .chatsounds
         .lock()
         .await
+        .as_mut()
+        .unwrap()
         .search(&input)
         .iter()
         .filter_map(|(pos, sentence)| {

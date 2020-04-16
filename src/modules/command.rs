@@ -6,8 +6,8 @@ use crate::{
   printer::print,
 };
 use chatsounds::Chatsounds;
-use classicube_sys::{Commands_Register, OwnedChatCommand};
-use std::{cell::Cell, os::raw::c_int, pin::Pin, slice};
+use classicube_sys::OwnedChatCommand;
+use std::{cell::Cell, os::raw::c_int, slice};
 
 // TODO move file to helpers
 
@@ -16,17 +16,17 @@ const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Defau
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 pub struct CommandModule {
-  owned_command: Pin<Box<OwnedChatCommand>>,
+  owned_command: OwnedChatCommand,
   option_module: SyncShared<OptionModule>,
   event_handler_module: SyncShared<EventHandlerModule>,
-  chatsounds: FutureShared<Chatsounds>,
+  chatsounds: FutureShared<Option<Chatsounds>>,
 }
 
 impl CommandModule {
   pub fn new(
     option_module: SyncShared<OptionModule>,
     event_handler_module: SyncShared<EventHandlerModule>,
-    chatsounds: FutureShared<Chatsounds>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
     let owned_command = OwnedChatCommand::new(
       "Chatsounds",
@@ -48,7 +48,8 @@ impl CommandModule {
 
     match args.as_slice() {
       ["volume"] => {
-        let current_volume = self.chatsounds.lock().await.volume() / VOLUME_NORMAL;
+        let current_volume =
+          self.chatsounds.lock().await.as_mut().unwrap().volume() / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
@@ -65,6 +66,8 @@ impl CommandModule {
               .chatsounds
               .lock()
               .await
+              .as_mut()
+              .unwrap()
               .set_volume(VOLUME_NORMAL * volume);
 
             self
@@ -79,11 +82,12 @@ impl CommandModule {
       }
 
       ["sh"] => {
-        self.chatsounds.lock().await.stop_all();
+        self.chatsounds.lock().await.as_mut().unwrap().stop_all();
       }
 
       _ => {
-        let current_volume = self.chatsounds.lock().await.volume() / VOLUME_NORMAL;
+        let current_volume =
+          self.chatsounds.lock().await.as_mut().unwrap().volume() / VOLUME_NORMAL;
         print(format!(
           "{} (Currently {})",
           VOLUME_COMMAND_HELP, current_volume
@@ -101,9 +105,7 @@ thread_local!(
 
 impl Module for CommandModule {
   fn load(&mut self) {
-    unsafe {
-      Commands_Register(&mut self.owned_command.command);
-    }
+    self.owned_command.register();
 
     COMMAND_MODULE.with(|command_module| {
       command_module.set(Some(self as _));
