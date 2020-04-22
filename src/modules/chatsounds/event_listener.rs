@@ -80,7 +80,7 @@ impl ChatsoundsEventListener {
       self
         .tab_list
         .lock()
-        .find_entry_by_nick_name(full_nick)
+        .find_entry_by_nick_name(&full_nick)
         .map(|entry| (entry.get_id(), entry.get_real_name().unwrap(), said_text))
     } else {
       None
