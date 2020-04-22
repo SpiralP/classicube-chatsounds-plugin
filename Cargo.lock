@@ -354,7 +354,7 @@ dependencies = [
 [[package]]
 name = "classicube-sys"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-classicube-sys.git#2440a7eab56ed3df2cf518aac84ec75bc48ae754"
+source = "git+https://github.com/SpiralP/rust-classicube-sys.git#89969b9df7afdba8c00789b96157e71af8bef825"
 dependencies = [
  "bindgen 0.53.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.52 (registry+https://github.com/rust-lang/crates.io-index)",
