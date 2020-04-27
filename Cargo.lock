@@ -322,7 +322,7 @@ dependencies = [
 
 [[package]]
 name = "classicube-chatsounds-plugin"
-version = "3.4.3"
+version = "3.4.4"
 dependencies = [
  "chatsounds 0.1.0 (git+https://github.com/SpiralP/rust-chatsounds.git)",
  "classicube-helpers 0.1.0 (git+https://github.com/SpiralP/rust-classicube-helpers.git)",
