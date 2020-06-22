@@ -84,20 +84,18 @@ impl ChatsoundsModule {
       let mut chatsounds = chatsounds.lock().await;
 
       match source {
-        Source::Api(repo, repo_path) => {
-          chatsounds
-            .as_mut()
-            .unwrap()
-            .load_github_api(repo, repo_path)
-            .await
-        }
-        Source::Msgpack(repo, repo_path) => {
-          chatsounds
-            .as_mut()
-            .unwrap()
-            .load_github_msgpack(repo, repo_path)
-            .await
-        }
+        Source::Api(repo, repo_path) => chatsounds
+          .as_mut()
+          .unwrap()
+          .load_github_api(repo, repo_path)
+          .await
+          .unwrap(),
+        Source::Msgpack(repo, repo_path) => chatsounds
+          .as_mut()
+          .unwrap()
+          .load_github_msgpack(repo, repo_path)
+          .await
+          .unwrap(),
       }
     }
   }
@@ -124,7 +122,7 @@ impl Module for ChatsoundsModule {
           let path = Path::new("plugins/chatsounds");
           fs::create_dir_all(path).unwrap();
 
-          let mut chatsounds = Chatsounds::new(path);
+          let mut chatsounds = Chatsounds::new(path).unwrap();
 
           chatsounds.set_volume(VOLUME_NORMAL * volume);
 
