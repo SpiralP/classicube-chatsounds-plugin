@@ -14,10 +14,10 @@ classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
 crossbeam-channel = "0.4.2"
 env_logger = "0.7.1"
-futures = "0.3.4"
+futures = "0.3.5"
 lazy_static = "1.4.0"
 log = "0.4.8"
 parking_lot = "0.10.2"
 rand = "0.7.3"
 rand_chacha = "0.2.2"
-tokio = { version = "0.2.20", features = ["full"] }
+tokio = { version = "0.2.21", features = ["full"] }
