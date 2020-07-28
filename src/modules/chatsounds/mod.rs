@@ -35,6 +35,7 @@ const SOURCES: &[Source] = &[
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "css"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "ep1"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "ep2"),
+  Source::Msgpack("PAC3-Server/chatsounds-valve-games", "hl1"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "hl2"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "l4d"),
   Source::Msgpack("PAC3-Server/chatsounds-valve-games", "l4d2"),
