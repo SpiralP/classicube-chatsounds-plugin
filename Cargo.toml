@@ -1,6 +1,6 @@
 [package]
 name = "classicube-chatsounds-plugin"
-version = "3.5.0"
+version = "3.5.1-alpha.0"
 authors = ["SpiralP <spiral.palmer@gmail.com>"]
 edition = "2018"
 
@@ -21,3 +21,11 @@ parking_lot = "0.10.2"
 rand = "0.7.3"
 rand_chacha = "0.2.2"
 tokio = { version = "0.2.21", features = ["full"] }
+
+
+
+[package.metadata.release]
+disable-publish = true
+pre-release-commit-message = "Release {{version}}"
+post-release-commit-message = "Begin {{next_version}}"
+tag-message = "Release version {{version}}"
