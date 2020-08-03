@@ -13,7 +13,7 @@ use classicube_helpers::{
   entities::{Entities, ENTITY_SELF_ID},
   tab_list::TabList,
 };
-use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3};
+use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
 
 pub struct ChatsoundsEventListener {
   chatsounds: FutureShared<Option<Chatsounds>>,
@@ -90,6 +90,11 @@ impl ChatsoundsEventListener {
   // run this sync so that chat_last comes in order
   fn handle_chat_received(&mut self, full_msg: String, msg_type: MsgType) {
     if msg_type != MsgType_MSG_TYPE_NORMAL {
+      return;
+    }
+
+    let focused = unsafe { WindowInfo.Focused } != 0;
+    if !focused {
       return;
     }
 
