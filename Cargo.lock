@@ -226,7 +226,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "chatsounds"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git#14d7ca5547b1d3ff07a2505ddd65ae11b06b4bf6"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git#521089bc3569aa34b6167f59e756676d3dc51878"
 dependencies = [
  "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
