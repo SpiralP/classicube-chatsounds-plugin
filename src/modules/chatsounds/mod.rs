@@ -26,6 +26,7 @@ enum Source {
 }
 
 const SOURCES: &[Source] = &[
+  Source::Api("NotAwesome2/chatsounds", "sounds"),
   Source::Api(
     "Metastruct/garrysmod-chatsounds",
     "sound/chatsounds/autoadd",
