@@ -29,3 +29,8 @@ disable-publish = true
 pre-release-commit-message = "Release {{version}}"
 post-release-commit-message = "Begin {{next_version}}"
 tag-message = "Release version {{version}}"
+
+
+# fix them using old bindgen versions
+[patch.crates-io]
+coreaudio-sys = { git = "https://github.com/SpiralP/coreaudio-sys.git" }
