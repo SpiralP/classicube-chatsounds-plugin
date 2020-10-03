@@ -89,13 +89,13 @@ impl ChatsoundsModule {
         Source::Api(repo, repo_path) => chatsounds
           .as_mut()
           .unwrap()
-          .load_github_api(repo, repo_path)
+          .load_github_api(repo, repo_path, true)
           .await
           .unwrap(),
         Source::Msgpack(repo, repo_path) => chatsounds
           .as_mut()
           .unwrap()
-          .load_github_msgpack(repo, repo_path)
+          .load_github_msgpack(repo, repo_path, true)
           .await
           .unwrap(),
       }
