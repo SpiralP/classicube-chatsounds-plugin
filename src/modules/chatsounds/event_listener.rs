@@ -45,11 +45,16 @@ impl ChatsoundsEventListener {
       return Some((ENTITY_SELF_ID, String::new(), full_msg));
     }
 
-    if !full_msg.starts_with("> &f") {
+    if !full_msg.starts_with("> ") {
       self.chat_last = Some(full_msg.clone());
     } else if let Some(chat_last) = &self.chat_last {
       // we're a continue message
-      full_msg = full_msg.split_off(4); // skip "> &f"
+      full_msg = full_msg[2..].to_string(); // skip "> "
+
+      // skip "&f" if it exists
+      if full_msg.len() >= 2 && full_msg.get(0..1).map(|a| a == "&").unwrap_or(false) {
+        full_msg = full_msg[2..].to_string();
+      }
 
       // most likely there's a space
       // the server trims the first line :(
