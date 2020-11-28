@@ -11,11 +11,11 @@ jobs:
       - name: Install deps
         run: |
           iwr -useb get.scoop.sh | iex
-          echo "##[add-path]$HOME\scoop\shims"
-          echo "##[add-path]C:\ProgramData\scoop\shims"
+          echo "$HOME\scoop\shims" >> $env:GITHUB_PATH
+          echo "C:\ProgramData\scoop\shims" >> $env:GITHUB_PATH
           scoop install aria2
           scoop install llvm
-          echo "::set-env name=LIBCLANG_PATH::$HOME\scoop\apps\llvm\current\bin"
+          echo "LIBCLANG_PATH=$HOME\scoop\apps\llvm\current\bin" >> $env:GITHUB_ENV
 
       - name: Install nightly
         uses: actions-rs/toolchain@v1
@@ -113,7 +113,7 @@ jobs:
       - name: Install deps
         run: |
           brew install llvm
-          echo "##[add-path]/usr/local/opt/llvm/bin"
+          echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
 
       - name: Install nightly
         uses: actions-rs/toolchain@v1
