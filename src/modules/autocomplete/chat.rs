@@ -41,8 +41,8 @@ impl Chat {
     mut option_module: SyncShared<OptionModule>,
     chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
-    let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0 as _);
-    let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0 as _);
+    let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0_u32);
+    let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0_u32);
 
     Self {
       text: Vec::new(),
