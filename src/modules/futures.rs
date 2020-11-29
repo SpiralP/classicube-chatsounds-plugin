@@ -16,7 +16,11 @@ impl FuturesModule {
     Self {}
   }
 
-  pub fn spawn_future<F: Future<Output = ()> + Send + 'static>(f: F) {
+  pub fn spawn_future<F>(f: F)
+  where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+  {
     // TODO store remote_handle in a list, clear() on unload()
 
     let tokio_runtime = TOKIO_RUNTIME.lock();
