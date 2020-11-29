@@ -41,8 +41,10 @@ impl Chat {
     mut option_module: SyncShared<OptionModule>,
     chatsounds: FutureShared<Option<Chatsounds>>,
   ) -> Self {
-    let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0_u32);
-    let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0_u32);
+    #[allow(clippy::unnecessary_cast)]
+    let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0 as _);
+    #[allow(clippy::unnecessary_cast)]
+    let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0 as _);
 
     Self {
       text: Vec::new(),
