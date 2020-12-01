@@ -188,6 +188,8 @@ impl Module for ChatsoundsModule {
 
     let mut chatsounds_option = self.chatsounds.clone();
     FuturesModule::spawn_future(async move {
+      let mut chatsounds_option = chatsounds_option.lock().await;
+
       let mut chatsounds = {
         if fs::metadata("plugins")
           .map(|meta| meta.is_dir())
@@ -209,10 +211,11 @@ impl Module for ChatsoundsModule {
       status("chatsounds fetching sources...");
 
       ChatsoundsModule::load_sources(&mut chatsounds).await;
+      *chatsounds_option = Some(chatsounds);
 
       status("done fetching sources");
 
-      *chatsounds_option.lock().await = Some(chatsounds);
+      drop(chatsounds_option);
     });
 
     let chatsounds_event_listener = ChatsoundsEventListener::new(
