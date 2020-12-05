@@ -112,12 +112,12 @@ impl ChatsoundsModule {
            }| {
             match kind {
               SourceKind::Api => chatsounds
-                .fetch_github_api(repo, repo_path, false)
+                .fetch_github_api(repo, repo_path, true)
                 .map_ok(FetchedSource::Api)
                 .boxed(),
 
               SourceKind::Msgpack => chatsounds
-                .fetch_github_msgpack(repo, repo_path, false)
+                .fetch_github_msgpack(repo, repo_path, true)
                 .map_ok(FetchedSource::Msgpack)
                 .boxed(),
             }
@@ -142,36 +142,6 @@ impl ChatsoundsModule {
         }
       }
     }
-
-    //   let sources_len = SOURCES.len();
-    //   for (i, source) in SOURCES.iter().enumerate() {
-    //     let (repo, repo_path) = match source {
-    //       Source::Api(repo, repo_path) | Source::Msgpack(repo, repo_path) => (repo, repo_path),
-    //     };
-
-    //     status(format!(
-    //       "[{}/{}] fetching {} {}",
-    //       i + 1,
-    //       sources_len,
-    //       repo,
-    //       repo_path
-    //     ));
-
-    //     match source {
-    //       Source::Api(repo, repo_path) => chatsounds
-    //         .as_mut()
-    //         .unwrap()
-    //         .load_github_api(repo, repo_path, true)
-    //         .await
-    //         .unwrap(),
-    //       Source::Msgpack(repo, repo_path) => chatsounds
-    //         .as_mut()
-    //         .unwrap()
-    //         .load_github_msgpack(repo, repo_path, true)
-    //         .await
-    //         .unwrap(),
-    //     }
-    //   }
   }
 }
 
