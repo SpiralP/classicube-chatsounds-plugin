@@ -46,10 +46,25 @@ jobs:
       - run: Rename-Item -Path "target\release\classicube_chatsounds_plugin.dll" -NewName "classicube_chatsounds_windows_amd64.dll"
         if: startsWith(github.ref, 'refs/tags/')
 
+      - name: VirusTotal Scan
+        uses: crazy-max/ghaction-virustotal@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        id: virustotal
+        with:
+          vt_api_key: ${{ secrets.VT_API_KEY }}
+          files: |
+            classicube_cef_loader_windows_${{ matrix.config.arch }}.dll
+
+      - name: Generate Release Body Text
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          node .github\format-release.js '${{ steps.virustotal.outputs.analysis }}' > release_body_text.txt
+
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          body_path: release_body_text.txt
           files: target/release/classicube_chatsounds_windows_amd64.dll
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
