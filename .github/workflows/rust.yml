@@ -52,8 +52,7 @@ jobs:
         id: virustotal
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
-          files: |
-            classicube_cef_loader_windows_${{ matrix.config.arch }}.dll
+          files: target/release/classicube_chatsounds_windows_amd64.dll
 
       - name: Generate Release Body Text
         if: startsWith(github.ref, 'refs/tags/')
