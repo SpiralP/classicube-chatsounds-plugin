@@ -26,6 +26,7 @@ tokio = { version = "^0.2", features = ["full"] }
 
 [package.metadata.release]
 disable-publish = true
+tag-message = "Release version {{version}}"
 pre-release-commit-message = "Release {{version}}"
 post-release-commit-message = "Begin {{next_version}}"
-tag-message = "Release version {{version}}"
+dev-version-ext = "alpha"
