@@ -32,7 +32,7 @@ impl OptionModule {
     let c_default = CString::new("").unwrap();
 
     let mut buffer: [c_char; (STRING_SIZE as usize) + 1] = [0; (STRING_SIZE as usize) + 1];
-    let mut cc_string_value = classicube_sys::String {
+    let mut cc_string_value = classicube_sys::cc_string {
       buffer: buffer.as_mut_ptr(),
       capacity: STRING_SIZE as u16,
       length: 0,

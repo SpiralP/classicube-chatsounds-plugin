@@ -119,7 +119,7 @@ impl Module for CommandModule {
   }
 }
 
-unsafe extern "C" fn c_command_callback(args: *const classicube_sys::String, args_count: c_int) {
+unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, args_count: c_int) {
   COMMAND_MODULE.with(move |maybe_ptr| {
     if let Some(ptr) = maybe_ptr.get() {
       let command_module = &mut *ptr;

@@ -42,8 +42,7 @@ impl FuturesModule {
 
 impl Module for FuturesModule {
   fn load(&mut self) {
-    let rt = Builder::new()
-      .threaded_scheduler()
+    let rt = Builder::new_multi_thread()
       .enable_all()
       .build()
       .unwrap();
