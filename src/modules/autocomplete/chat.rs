@@ -8,9 +8,11 @@ use crate::{
 };
 use chatsounds::Chatsounds;
 use classicube_sys::{
-    Key, Key_KEY_BACKSPACE, Key_KEY_DELETE, Key_KEY_DOWN, Key_KEY_END, Key_KEY_ENTER,
-    Key_KEY_ESCAPE, Key_KEY_HOME, Key_KEY_KP_ENTER, Key_KEY_LCTRL, Key_KEY_LEFT, Key_KEY_LSHIFT,
-    Key_KEY_RCTRL, Key_KEY_RIGHT, Key_KEY_RSHIFT, Key_KEY_SLASH, Key_KEY_TAB, Key_KEY_UP,
+    InputButtons, InputButtons_KEY_BACKSPACE, InputButtons_KEY_DELETE, InputButtons_KEY_DOWN,
+    InputButtons_KEY_END, InputButtons_KEY_ENTER, InputButtons_KEY_ESCAPE, InputButtons_KEY_HOME,
+    InputButtons_KEY_KP_ENTER, InputButtons_KEY_LCTRL, InputButtons_KEY_LEFT,
+    InputButtons_KEY_LSHIFT, InputButtons_KEY_RCTRL, InputButtons_KEY_RIGHT,
+    InputButtons_KEY_RSHIFT, InputButtons_KEY_SLASH, InputButtons_KEY_TAB, InputButtons_KEY_UP,
 };
 use std::collections::HashMap;
 
@@ -28,10 +30,10 @@ pub struct Chat {
     hints: Option<Vec<(usize, String)>>,
     hint_pos: usize,
 
-    held_keys: HashMap<Key, bool>,
+    held_keys: HashMap<InputButtons, bool>,
 
-    open_chat_key: Key,
-    send_chat_key: Key,
+    open_chat_key: InputButtons,
+    send_chat_key: InputButtons,
 
     chatsounds: FutureShared<Option<Chatsounds>>,
 }
@@ -164,9 +166,9 @@ impl Chat {
     pub fn set_text<T: Into<String>>(&mut self, text: T) {
         let text = text.into();
 
-        simulate_key(Key_KEY_END);
+        simulate_key(InputButtons_KEY_END);
         for _ in 0..192 {
-            simulate_key(Key_KEY_BACKSPACE);
+            simulate_key(InputButtons_KEY_BACKSPACE);
         }
 
         for chr in text.chars() {
@@ -189,8 +191,8 @@ impl Chat {
 
     #[allow(clippy::cognitive_complexity)]
     #[allow(clippy::too_many_lines)]
-    async fn handle_key(&mut self, key: Key) {
-        if key == Key_KEY_LEFT {
+    async fn handle_key(&mut self, key: InputButtons) {
+        if key == InputButtons_KEY_LEFT {
             if self.is_ctrl_held() {
                 let mut found_non_space = false;
                 loop {
@@ -215,7 +217,7 @@ impl Chat {
             } else if self.cursor_pos > 0 {
                 self.cursor_pos -= 1;
             }
-        } else if key == Key_KEY_RIGHT {
+        } else if key == InputButtons_KEY_RIGHT {
             if self.is_ctrl_held() {
                 let mut found_space = false;
                 loop {
@@ -240,7 +242,7 @@ impl Chat {
             } else if self.text.len() > self.cursor_pos {
                 self.cursor_pos += 1;
             }
-        } else if key == Key_KEY_BACKSPACE {
+        } else if key == InputButtons_KEY_BACKSPACE {
             if self.is_ctrl_held() {
                 // ctrl-backspace remove word
 
@@ -271,17 +273,17 @@ impl Chat {
             }
 
             self.update_hints().await;
-        } else if key == Key_KEY_DELETE {
+        } else if key == InputButtons_KEY_DELETE {
             if self.cursor_pos < self.text.len() && self.text.get(self.cursor_pos).is_some() {
                 self.text.remove(self.cursor_pos);
             }
 
             self.update_hints().await;
-        } else if key == Key_KEY_HOME {
+        } else if key == InputButtons_KEY_HOME {
             self.cursor_pos = 0;
-        } else if key == Key_KEY_END {
+        } else if key == InputButtons_KEY_END {
             self.cursor_pos = self.text.len();
-        } else if key == Key_KEY_UP {
+        } else if key == InputButtons_KEY_UP {
             if self.is_ctrl_held() {
                 // ??
                 return;
@@ -298,7 +300,7 @@ impl Chat {
             }
 
             self.update_hints().await;
-        } else if key == Key_KEY_DOWN {
+        } else if key == InputButtons_KEY_DOWN {
             if self.is_ctrl_held() {
                 self.cursor_pos = self.text.len();
                 return;
@@ -322,7 +324,7 @@ impl Chat {
             self.cursor_pos = self.text.len();
 
             self.update_hints().await;
-        } else if key == Key_KEY_TAB {
+        } else if key == InputButtons_KEY_TAB {
             if let Some(hints) = &self.hints {
                 let hints_len = hints.len();
 
@@ -353,9 +355,9 @@ impl Chat {
         }
     }
 
-    pub async fn handle_key_down(&mut self, key: Key, repeat: bool) {
+    pub async fn handle_key_down(&mut self, key: InputButtons, repeat: bool) {
         if !repeat {
-            if !self.open && (key == self.open_chat_key || key == Key_KEY_SLASH) {
+            if !self.open && (key == self.open_chat_key || key == InputButtons_KEY_SLASH) {
                 self.open = true;
                 self.text.clear();
                 self.cursor_pos = 0;
@@ -364,12 +366,12 @@ impl Chat {
                 self.hints = None;
                 self.hint_pos = 0;
 
-                if key == Key_KEY_SLASH {
+                if key == InputButtons_KEY_SLASH {
                     self.handle_char_insert('/');
                 }
 
                 // special case for non-abc key binds
-                if key != Key_KEY_ENTER {
+                if key != InputButtons_KEY_ENTER {
                     self.dedupe_open_key = true;
                 }
 
@@ -377,9 +379,9 @@ impl Chat {
                 return;
             }
 
-            let chat_send_success = key == self.send_chat_key || key == Key_KEY_KP_ENTER;
+            let chat_send_success = key == self.send_chat_key || key == InputButtons_KEY_KP_ENTER;
 
-            if chat_send_success || key == Key_KEY_ESCAPE {
+            if chat_send_success || key == InputButtons_KEY_ESCAPE {
                 if chat_send_success {
                     self.history.push(self.text.to_vec());
                 }
@@ -405,34 +407,41 @@ impl Chat {
         }
     }
 
-    fn handle_held_keys(&mut self, key: Key, down: bool) {
-        if key == Key_KEY_LCTRL
-            || key == Key_KEY_RCTRL
-            || key == Key_KEY_LSHIFT
-            || key == Key_KEY_RSHIFT
+    fn handle_held_keys(&mut self, key: InputButtons, down: bool) {
+        if key == InputButtons_KEY_LCTRL
+            || key == InputButtons_KEY_RCTRL
+            || key == InputButtons_KEY_LSHIFT
+            || key == InputButtons_KEY_RSHIFT
         {
             self.held_keys.insert(key, down);
         }
     }
 
     fn is_ctrl_held(&self) -> bool {
-        self.held_keys.get(&Key_KEY_LCTRL).copied().unwrap_or(false)
-            || self.held_keys.get(&Key_KEY_RCTRL).copied().unwrap_or(false)
-    }
-
-    fn is_shift_held(&self) -> bool {
         self.held_keys
-            .get(&Key_KEY_LSHIFT)
+            .get(&InputButtons_KEY_LCTRL)
             .copied()
             .unwrap_or(false)
             || self
                 .held_keys
-                .get(&Key_KEY_RSHIFT)
+                .get(&InputButtons_KEY_RCTRL)
                 .copied()
                 .unwrap_or(false)
     }
 
-    pub async fn handle_key_up(&mut self, key: Key) {
+    fn is_shift_held(&self) -> bool {
+        self.held_keys
+            .get(&InputButtons_KEY_LSHIFT)
+            .copied()
+            .unwrap_or(false)
+            || self
+                .held_keys
+                .get(&InputButtons_KEY_RSHIFT)
+                .copied()
+                .unwrap_or(false)
+    }
+
+    pub async fn handle_key_up(&mut self, key: InputButtons) {
         self.handle_held_keys(key, false);
     }
 

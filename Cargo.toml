@@ -13,7 +13,7 @@ classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers
 classicube-sys = { git = "https://github.com/SpiralP/rust-classicube-sys.git" }
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
 crossbeam-channel = "0.5"
-env_logger = "0.8"
+env_logger = "0.9"
 futures = "0.3"
 lazy_static = "1.4.0"
 log = "0.4"

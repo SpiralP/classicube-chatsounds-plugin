@@ -1,5 +1,5 @@
 use crate::modules::event_handler::{OutgoingEvent, OUTGOING_SENDER};
-use classicube_sys::{Key, MsgType};
+use classicube_sys::{InputButtons, MsgType};
 
 pub fn new_outgoing_event(event: OutgoingEvent) {
     let mut outgoing_sender = OUTGOING_SENDER.lock();
@@ -16,7 +16,7 @@ pub fn chat_add<S: Into<String>>(text: S) {
     new_outgoing_event(OutgoingEvent::ChatAdd(text.into()));
 }
 
-pub fn simulate_key(key: Key) {
+pub fn simulate_key(key: InputButtons) {
     new_outgoing_event(OutgoingEvent::InputDown(key, false));
     new_outgoing_event(OutgoingEvent::InputUp(key));
 }
