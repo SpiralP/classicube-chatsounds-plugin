@@ -1,9 +1,9 @@
 use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
 use classicube_sys::MsgType_MSG_TYPE_CLIENTSTATUS_2;
 use lazy_static::lazy_static;
-use log::info;
 use parking_lot::Mutex;
 use std::time::{Duration, Instant};
+use tracing::info;
 
 const STATUS_DURATION: Duration = Duration::from_secs(8);
 

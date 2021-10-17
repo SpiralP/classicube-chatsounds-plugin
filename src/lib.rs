@@ -5,9 +5,9 @@ mod printer;
 
 use classicube_sys::IGameComponent;
 use lazy_static::lazy_static;
-use log::debug;
 use parking_lot::Mutex;
 use std::{os::raw::c_int, ptr};
+use tracing::debug;
 
 lazy_static! {
     static ref LOADED: Mutex<bool> = Mutex::new(false);
