@@ -1,6 +1,6 @@
 use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
-    helpers::remove_color,
+    helpers::is_continuation_message,
     modules::{
         chatsounds::random::get_rng,
         event_handler::{IncomingEvent, IncomingEventListener},
@@ -11,7 +11,7 @@ use crate::{
 use chatsounds::Chatsounds;
 use classicube_helpers::{
     entities::{Entities, ENTITY_SELF_ID},
-    tab_list::TabList,
+    tab_list::{remove_color, TabList},
 };
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
 
@@ -45,21 +45,18 @@ impl ChatsoundsEventListener {
             return Some((ENTITY_SELF_ID, String::new(), full_msg));
         }
 
-        if !full_msg.starts_with("> ") {
-            self.chat_last = Some(full_msg.clone());
-        } else if let Some(chat_last) = &self.chat_last {
-            // we're a continue message
-            full_msg = full_msg[2..].to_string(); // skip "> "
+        if let Some(continuation) = is_continuation_message(&full_msg) {
+            if let Some(chat_last) = &self.chat_last {
+                // we're a continue message
+                full_msg = continuation.to_string();
 
-            // skip "&f" if it exists
-            if full_msg.len() >= 2 && full_msg.get(0..1).map(|a| a == "&").unwrap_or(false) {
-                full_msg = full_msg[2..].to_string();
+                // most likely there's a space
+                // the server trims the first line :(
+                full_msg = format!("{} {}", chat_last, full_msg);
+                self.chat_last = Some(full_msg.clone());
             }
-
-            // most likely there's a space
-            // the server trims the first line :(
-            // TODO try both messages? with and without the space?
-            full_msg = format!("{} {}", chat_last, full_msg);
+        } else {
+            // normal message start
             self.chat_last = Some(full_msg.clone());
         }
 
@@ -69,7 +66,10 @@ impl ChatsoundsEventListener {
         // nickname_resolver_handle_message(full_msg.to_string());
 
         // find colon from the left
-        if let Some(pos) = full_msg.find(": ") {
+        let opt = full_msg
+            .find(": ")
+            .and_then(|pos| if pos > 4 { Some(pos) } else { None });
+        if let Some(pos) = opt {
             // &]SpiralP
             let left = &full_msg[..pos]; // left without colon
                                          // &faaa

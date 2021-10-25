@@ -1,19 +1,20 @@
-pub fn remove_color<T: AsRef<str>>(text: T) -> String {
-    let mut found_ampersand = false;
+pub fn remove_color_left(mut text: &str) -> &str {
+    while text.len() >= 2 && text.get(0..1).map(|c| c == "&").unwrap_or(false) {
+        if let Some(trimmed) = text.get(2..) {
+            text = trimmed;
+        } else {
+            break;
+        }
+    }
 
-    text.as_ref()
-        .chars()
-        .filter(|&c| {
-            if c == '&' {
-                // we remove all amps but they're kept in chat if repeated
-                found_ampersand = true;
-                false
-            } else if found_ampersand {
-                found_ampersand = false;
-                false
-            } else {
-                true
-            }
-        })
-        .collect()
+    text
+}
+
+pub fn is_continuation_message(mut message: &str) -> Option<&str> {
+    if message.starts_with("> ") {
+        message = message.get(2..)?;
+        Some(remove_color_left(message))
+    } else {
+        None
+    }
 }
