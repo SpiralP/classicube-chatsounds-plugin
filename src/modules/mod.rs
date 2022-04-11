@@ -11,19 +11,23 @@ pub use self::{
     command::CommandModule, event_handler::EventHandlerModule, futures::FuturesModule,
     option::OptionModule,
 };
-
 use crate::printer::PrinterEventListener;
-use classicube_helpers::{
-    entities::Entities,
-    shared::{FutureShared, SyncShared, ThreadShared},
-    tab_list::TabList,
+use ::futures::lock::Mutex as FutureMutex;
+use classicube_helpers::{entities::Entities, tab_list::TabList};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
 };
-use std::cell::RefCell;
 
 pub trait Module {
     fn load(&mut self);
     fn unload(&mut self);
 }
+
+pub type SyncShared<T> = Rc<RefCell<T>>;
+pub type ThreadShared<T> = Arc<Mutex<T>>;
+pub type FutureShared<T> = Arc<FutureMutex<T>>;
 
 thread_local!(
     static MODULES: RefCell<Vec<SyncShared<dyn Module>>> = RefCell::new(Vec::new());
@@ -35,48 +39,48 @@ pub fn load() {
 
         // TODO maybe give eachother Weak?
 
-        let entities = SyncShared::new(Entities::new());
-        let tab_list = SyncShared::new(TabList::new());
+        let entities = Rc::new(RefCell::new(Entities::new()));
+        let tab_list = Rc::new(RefCell::new(TabList::new()));
 
-        let option_module = SyncShared::new(OptionModule::new());
+        let option_module = Rc::new(RefCell::new(OptionModule::new()));
         modules.push(option_module.clone());
 
-        let mut event_handler_module = SyncShared::new(EventHandlerModule::new());
+        let event_handler_module = Rc::new(RefCell::new(EventHandlerModule::new()));
         event_handler_module
-            .lock()
+            .borrow_mut()
             .register_listener(PrinterEventListener {});
         modules.push(event_handler_module.clone());
 
-        let app_name_module = SyncShared::new(AppNameModule::new());
+        let app_name_module = Rc::new(RefCell::new(AppNameModule::new()));
         modules.push(app_name_module);
 
-        let futures_module = SyncShared::new(FuturesModule::new());
+        let futures_module = Rc::new(RefCell::new(FuturesModule::new()));
         modules.push(futures_module);
 
-        let mut chatsounds_module = SyncShared::new(ChatsoundsModule::new(
+        let chatsounds_module = Rc::new(RefCell::new(ChatsoundsModule::new(
             option_module.clone(),
             entities,
             event_handler_module.clone(),
             tab_list,
-        ));
+        )));
         modules.push(chatsounds_module.clone());
 
-        let command_module = SyncShared::new(CommandModule::new(
+        let command_module = Rc::new(RefCell::new(CommandModule::new(
             option_module.clone(),
             event_handler_module.clone(),
-            chatsounds_module.lock().chatsounds.clone(),
-        ));
+            chatsounds_module.borrow_mut().chatsounds.clone(),
+        )));
         modules.push(command_module);
 
-        let autocomplete_module = SyncShared::new(AutocompleteModule::new(
+        let autocomplete_module = Rc::new(RefCell::new(AutocompleteModule::new(
             option_module,
-            chatsounds_module.lock().chatsounds.clone(),
+            chatsounds_module.borrow_mut().chatsounds.clone(),
             event_handler_module,
-        ));
+        )));
         modules.push(autocomplete_module);
 
         for module in modules.iter_mut() {
-            let mut module = module.lock();
+            let mut module = module.borrow_mut();
             module.load();
         }
     });
@@ -89,8 +93,8 @@ pub fn unload() {
         // TODO using Rc will keep these alive in other places on unload!
 
         // unload in reverse order
-        for mut module in modules.drain(..).rev() {
-            let mut module = module.lock();
+        for module in modules.drain(..).rev() {
+            let mut module = module.borrow_mut();
             module.unload();
         }
     });

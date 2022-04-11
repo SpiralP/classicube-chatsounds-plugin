@@ -70,7 +70,7 @@ impl CommandModule {
                             .set_volume(VOLUME_NORMAL * volume);
 
                         self.option_module
-                            .lock()
+                            .borrow_mut()
                             .set(VOLUME_SETTING_NAME, format!("{}", volume));
                     }
                     Err(e) => {
@@ -129,7 +129,7 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, 
                 command_module.command_callback(args).await;
             });
 
-            let mut event_handler_module = command_module.event_handler_module.lock();
+            let mut event_handler_module = command_module.event_handler_module.borrow_mut();
             event_handler_module.handle_outgoing_events();
         }
     });

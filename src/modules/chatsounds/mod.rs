@@ -4,6 +4,7 @@ mod random;
 mod send_entity;
 
 use self::event_listener::ChatsoundsEventListener;
+use super::{FutureShared, SyncShared};
 use crate::{
     modules::{
         command::VOLUME_SETTING_NAME, EventHandlerModule, FuturesModule, Module, OptionModule,
@@ -11,11 +12,7 @@ use crate::{
     printer::{print, status},
 };
 use chatsounds::Chatsounds;
-use classicube_helpers::{
-    entities::Entities,
-    shared::{FutureShared, SyncShared},
-    tab_list::TabList,
-};
+use classicube_helpers::{entities::Entities, tab_list::TabList};
 use futures::prelude::*;
 use std::{fs, path::Path};
 
@@ -86,7 +83,7 @@ impl ChatsoundsModule {
         tab_list: SyncShared<TabList>,
     ) -> Self {
         Self {
-            chatsounds: FutureShared::new(None),
+            chatsounds: Default::default(),
             entities,
             event_handler_module,
             tab_list,
@@ -151,12 +148,12 @@ impl Module for ChatsoundsModule {
 
         let volume = self
             .option_module
-            .lock()
+            .borrow_mut()
             .get(VOLUME_SETTING_NAME)
             .and_then(|s| s.parse().ok())
             .unwrap_or(1.0);
 
-        let mut chatsounds_option = self.chatsounds.clone();
+        let chatsounds_option = self.chatsounds.clone();
         FuturesModule::spawn_future(async move {
             let mut chatsounds_option = chatsounds_option.lock().await;
 
@@ -195,10 +192,10 @@ impl Module for ChatsoundsModule {
         );
 
         self.event_handler_module
-            .lock()
+            .borrow_mut()
             .register_listener(chatsounds_event_listener);
 
-        self.tab_list.lock().on_added(|_event| {
+        self.tab_list.borrow_mut().on_added(|_event| {
             // whenever a new player joins, or someone changes map
             // we try to sync the random
             // resetting on map change could fix local map chat too?

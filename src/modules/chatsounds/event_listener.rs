@@ -31,7 +31,7 @@ impl ChatsoundsEventListener {
     ) -> Self {
         Self {
             chatsounds,
-            entity_emitters: ThreadShared::new(Vec::new()),
+            entity_emitters: Default::default(),
             chat_last: None,
             tab_list,
             entities,
@@ -83,9 +83,13 @@ impl ChatsoundsEventListener {
 
             // lookup entity id from nick_name by using TabList
             self.tab_list
-                .lock()
+                .borrow_mut()
                 .find_entry_by_nick_name(&full_nick)
-                .map(|entry| (entry.get_id(), entry.get_real_name().unwrap(), said_text))
+                .and_then(|entry| {
+                    entry
+                        .upgrade()
+                        .map(|entry| (entry.get_id(), entry.get_real_name(), said_text))
+                })
         } else {
             None
         }
@@ -105,13 +109,13 @@ impl ChatsoundsEventListener {
         if let Some((id, real_name, said_text)) = self.find_player_from_message(full_msg) {
             random::update_chat_count(&real_name);
 
-            let entities = self.entities.lock();
-            if let Some(entity) = entities.get(id) {
+            let entities = self.entities.borrow_mut();
+            if let Some(entity) = entities.get(id).and_then(|e| e.upgrade()) {
                 // if entity is in our map
-                if let Some(self_entity) = entities.get(ENTITY_SELF_ID) {
+                if let Some(self_entity) = entities.get(ENTITY_SELF_ID).and_then(|e| e.upgrade()) {
                     let colorless_text: String = remove_color(said_text).trim().to_string();
 
-                    let send_entity = SendEntity::from(entity);
+                    let send_entity = SendEntity::from(&entity);
 
                     let self_pos = self_entity.get_position();
                     let self_rot_yaw = self_entity.get_rot()[1];
@@ -146,8 +150,8 @@ pub async fn play_chatsound(
     entity: SendEntity,
     self_pos: Vec3,
     self_rot_yaw: f32,
-    mut chatsounds: FutureShared<Option<Chatsounds>>,
-    mut entity_emitters: ThreadShared<Vec<EntityEmitter>>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
+    entity_emitters: ThreadShared<Vec<EntityEmitter>>,
 ) {
     let mut chatsounds = chatsounds.lock().await;
     let chatsounds = chatsounds.as_mut().unwrap();
@@ -159,7 +163,7 @@ pub async fn play_chatsound(
 
     if sentence.to_lowercase() == "sh" {
         chatsounds.stop_all();
-        entity_emitters.lock().clear();
+        entity_emitters.lock().unwrap().clear();
         return;
     }
 
@@ -183,6 +187,7 @@ pub async fn play_chatsound(
             // don't print other's errors
             entity_emitters
                 .lock()
+                .unwrap()
                 .push(EntityEmitter::new(entity.id, &sink));
         }
     }
@@ -198,7 +203,7 @@ impl IncomingEventListener for ChatsoundsEventListener {
             IncomingEvent::Tick => {
                 // update positions on emitters
 
-                let mut entity_emitters = self.entity_emitters.lock();
+                let mut entity_emitters = self.entity_emitters.lock().unwrap();
 
                 let mut to_remove = Vec::with_capacity(entity_emitters.len());
                 for (i, emitter) in entity_emitters.iter_mut().enumerate() {

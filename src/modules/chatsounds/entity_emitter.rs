@@ -13,23 +13,25 @@ impl EntityEmitter {
     pub fn new(entity_id: u8, sink: &Arc<SpatialSink>) -> Self {
         Self {
             entity_id,
-            sink: Arc::downgrade(&sink),
+            sink: Arc::downgrade(sink),
         }
     }
 
     /// returns true if still alive
     pub fn update(&mut self, entities: &mut SyncShared<Entities>) -> bool {
         let (emitter_pos, self_stuff) = {
-            let entities = entities.lock();
+            let entities = entities.borrow_mut();
 
             (
                 if let Some(entity) = entities.get(self.entity_id) {
-                    Some(entity.get_position())
+                    entity.upgrade().map(|entity| entity.get_position())
                 } else {
                     None
                 },
                 if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-                    Some((entity.get_position(), entity.get_rot()[1]))
+                    entity
+                        .upgrade()
+                        .map(|entity| (entity.get_position(), entity.get_rot()[1]))
                 } else {
                     None
                 },

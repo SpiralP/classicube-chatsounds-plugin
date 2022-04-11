@@ -40,13 +40,13 @@ pub struct Chat {
 
 impl Chat {
     pub fn new(
-        mut option_module: SyncShared<OptionModule>,
+        option_module: SyncShared<OptionModule>,
         chatsounds: FutureShared<Option<Chatsounds>>,
     ) -> Self {
         #[allow(clippy::unnecessary_cast)]
-        let open_chat_key = option_module.lock().open_chat_key.unwrap_or(0 as _);
+        let open_chat_key = option_module.borrow_mut().open_chat_key.unwrap_or(0 as _);
         #[allow(clippy::unnecessary_cast)]
-        let send_chat_key = option_module.lock().send_chat_key.unwrap_or(0 as _);
+        let send_chat_key = option_module.borrow_mut().send_chat_key.unwrap_or(0 as _);
 
         Self {
             text: Vec::new(),

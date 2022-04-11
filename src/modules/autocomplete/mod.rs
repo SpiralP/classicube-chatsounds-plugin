@@ -37,7 +37,7 @@ impl Module for AutocompleteModule {
             AutocompleteEventListener::new(self.option_module.clone(), self.chatsounds.clone());
 
         self.event_handler_module
-            .lock()
+            .borrow_mut()
             .register_listener(autocomplete_event_listener);
     }
 

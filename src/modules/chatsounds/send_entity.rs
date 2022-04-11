@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use classicube_helpers::entities::Entity;
 use classicube_sys::Vec3;
 
@@ -8,8 +10,8 @@ pub struct SendEntity {
     pub rot: [f32; 3],
 }
 
-impl From<&Entity> for SendEntity {
-    fn from(e: &Entity) -> Self {
+impl From<&Rc<Entity>> for SendEntity {
+    fn from(e: &Rc<Entity>) -> Self {
         let id = e.get_id();
         let pos = e.get_position();
         let rot = e.get_rot();
