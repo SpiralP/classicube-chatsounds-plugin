@@ -34,13 +34,14 @@ jobs:
           scoop install --arch ${{ matrix.config.bits }}bit llvm
           echo "LIBCLANG_PATH=$HOME\scoop\apps\llvm\current\bin" >> $env:GITHUB_ENV
 
-      - name: Install nightly ${{ matrix.config.target }}
+      - name: Install rust stable ${{ matrix.config.target }}
         uses: actions-rs/toolchain@v1
         with:
           # we have to use this toolchain because "libclang.dll: invalid DLL (32-bit)"
-          toolchain: nightly-${{ matrix.config.target }}
+          toolchain: stable-${{ matrix.config.target }}
           target: ${{ matrix.config.target }}
           override: true
+          components: rustfmt
 
       - name: Build
         uses: actions-rs/cargo@v1
@@ -114,12 +115,13 @@ jobs:
           sudo apt-get -y install mesa-common-dev libopenal-dev libcurl4-openssl-dev libgl1-mesa-dev
           sudo apt-get -y install libasound2-dev libpango1.0-dev libatk1.0-dev libgtk-3-dev
 
-      - name: Install nightly ${{ matrix.config.target }}
+      - name: Install rust stable ${{ matrix.config.target }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           target: ${{ matrix.config.target }}
           override: true
+          components: rustfmt
 
       - name: Build
         uses: actions-rs/cargo@v1
@@ -173,12 +175,13 @@ jobs:
           brew install llvm
           echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
 
-      - name: Install nightly ${{ matrix.config.target }}
+      - name: Install rust stable ${{ matrix.config.target }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           target: ${{ matrix.config.target }}
           override: true
+          components: rustfmt
 
       - name: Build
         uses: actions-rs/cargo@v1
