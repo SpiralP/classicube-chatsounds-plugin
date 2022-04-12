@@ -5,9 +5,11 @@ use crate::{
     },
     printer::print,
 };
+use anyhow::{anyhow, Result};
 use chatsounds::Chatsounds;
 use classicube_sys::OwnedChatCommand;
 use std::{cell::Cell, os::raw::c_int, slice};
+use tracing::error;
 
 // TODO move file to helpers
 
@@ -43,13 +45,15 @@ impl CommandModule {
         }
     }
 
-    async fn command_callback(&mut self, args: Vec<String>) {
+    async fn command_callback(&mut self, args: Vec<String>) -> Result<()> {
         let args: Vec<&str> = args.iter().map(|s| s.as_ref()).collect();
+
+        let mut chatsounds = self.chatsounds.lock().await;
+        let chatsounds = chatsounds.as_mut().ok_or_else(|| anyhow!("no"))?;
 
         match args.as_slice() {
             ["volume"] => {
-                let current_volume =
-                    self.chatsounds.lock().await.as_mut().unwrap().volume() / VOLUME_NORMAL;
+                let current_volume = chatsounds.volume() / VOLUME_NORMAL;
                 print(format!(
                     "{} (Currently {})",
                     VOLUME_COMMAND_HELP, current_volume
@@ -57,35 +61,22 @@ impl CommandModule {
             }
 
             ["volume", volume] => {
-                let volume_maybe: Result<f32, _> = volume.parse();
-                match volume_maybe {
-                    Ok(volume) => {
-                        print(format!("&eSetting volume to {}", volume));
+                let volume = volume.parse::<f32>()?;
+                print(format!("&eSetting volume to {}", volume));
 
-                        self.chatsounds
-                            .lock()
-                            .await
-                            .as_mut()
-                            .unwrap()
-                            .set_volume(VOLUME_NORMAL * volume);
+                chatsounds.set_volume(VOLUME_NORMAL * volume);
 
-                        self.option_module
-                            .borrow_mut()
-                            .set(VOLUME_SETTING_NAME, format!("{}", volume));
-                    }
-                    Err(e) => {
-                        print(format!("&c{}", e));
-                    }
-                }
+                self.option_module
+                    .borrow_mut()
+                    .set(VOLUME_SETTING_NAME, format!("{}", volume));
             }
 
             ["sh"] => {
-                self.chatsounds.lock().await.as_mut().unwrap().stop_all();
+                chatsounds.stop_all();
             }
 
             _ => {
-                let current_volume =
-                    self.chatsounds.lock().await.as_mut().unwrap().volume() / VOLUME_NORMAL;
+                let current_volume = chatsounds.volume() / VOLUME_NORMAL;
                 print(format!(
                     "{} (Currently {})",
                     VOLUME_COMMAND_HELP, current_volume
@@ -93,6 +84,8 @@ impl CommandModule {
                 print(SH_COMMAND_HELP);
             }
         }
+
+        Ok(())
     }
 }
 
@@ -126,7 +119,10 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, 
             let args: Vec<String> = args.iter().map(|cc_string| cc_string.to_string()).collect();
 
             FuturesModule::block_future(async {
-                command_module.command_callback(args).await;
+                if let Err(e) = command_module.command_callback(args).await {
+                    error!(?e);
+                    print(format!("{}{:?}", classicube_helpers::color::RED, e));
+                }
             });
 
             let mut event_handler_module = command_module.event_handler_module.borrow_mut();

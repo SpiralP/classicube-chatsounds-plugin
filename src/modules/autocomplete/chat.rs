@@ -15,6 +15,7 @@ use classicube_sys::{
     InputButtons_KEY_RSHIFT, InputButtons_KEY_SLASH, InputButtons_KEY_TAB, InputButtons_KEY_UP,
 };
 use std::collections::HashMap;
+use tracing::error;
 
 pub struct Chat {
     open: bool,
@@ -75,29 +76,28 @@ impl Chat {
         let input = input.trim().to_string();
 
         if !input.is_empty() && input.len() >= 2 {
-            let results: Vec<_> = self
-                .chatsounds
-                .lock()
-                .await
-                .as_mut()
-                .unwrap()
-                .search(&input)
-                .iter()
-                .filter_map(|(pos, sentence)| {
-                    // max chat input length
-                    const MAX_CHAT_INPUT: usize = 192;
+            if let Some(chatsounds) = self.chatsounds.lock().await.as_mut() {
+                let results: Vec<_> = chatsounds
+                    .search(&input)
+                    .iter()
+                    .filter_map(|(pos, sentence)| {
+                        // max chat input length
+                        const MAX_CHAT_INPUT: usize = 192;
 
-                    if sentence.len() <= MAX_CHAT_INPUT {
-                        Some((*pos, (*sentence).to_string()))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+                        if sentence.len() <= MAX_CHAT_INPUT {
+                            Some((*pos, (*sentence).to_string()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
 
-            if !results.is_empty() {
-                self.search = Some(input);
-                self.hints = Some(results);
+                if !results.is_empty() {
+                    self.search = Some(input);
+                    self.hints = Some(results);
+                }
+            } else {
+                error!("self.chatsounds is None");
             }
         }
 

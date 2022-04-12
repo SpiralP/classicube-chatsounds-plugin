@@ -9,8 +9,9 @@ use crate::{
     modules::{
         command::VOLUME_SETTING_NAME, EventHandlerModule, FuturesModule, Module, OptionModule,
     },
-    printer::{print, status},
+    printer::print,
 };
+use anyhow::Result;
 use chatsounds::Chatsounds;
 use classicube_helpers::{entities::Entities, tab_list::TabList};
 use futures::prelude::*;
@@ -18,33 +19,22 @@ use std::{fs, path::Path};
 
 pub const VOLUME_NORMAL: f32 = 0.1;
 
-#[derive(Copy, Clone)]
-enum SourceKind {
-    Api,
-    Msgpack,
+struct GitHubRepo {
+    name: &'static str,
+    path: &'static str,
 }
 
-#[derive(Copy, Clone)]
-struct Source {
-    repo: &'static str,
-    repo_path: &'static str,
-    kind: SourceKind,
+enum Source {
+    Api(GitHubRepo),
+    MsgPack(GitHubRepo),
 }
 impl Source {
-    const fn api(repo: &'static str, repo_path: &'static str) -> Self {
-        Self {
-            repo,
-            repo_path,
-            kind: SourceKind::Api,
-        }
+    const fn api(name: &'static str, path: &'static str) -> Source {
+        Source::Api(GitHubRepo { name, path })
     }
 
-    const fn msgpack(repo: &'static str, repo_path: &'static str) -> Self {
-        Self {
-            repo,
-            repo_path,
-            kind: SourceKind::Msgpack,
-        }
+    const fn msgpack(name: &'static str, path: &'static str) -> Source {
+        Source::MsgPack(GitHubRepo { name, path })
     }
 }
 
@@ -91,54 +81,40 @@ impl ChatsoundsModule {
         }
     }
 
-    async fn load_sources(chatsounds: &mut Chatsounds) {
-        enum FetchedSource {
+    async fn load_sources(chatsounds: &mut Chatsounds) -> Result<()> {
+        enum SourceData {
             Api(chatsounds::GitHubApiTrees),
-            Msgpack(chatsounds::GitHubMsgpackEntries),
+            MsgPack(chatsounds::GitHubMsgpackEntries),
         }
 
-        // TODO undo this weirdness when this is fixed
-        // https://github.com/rust-lang/rust/issues/64552#issuecomment-669728225
         let stream: std::pin::Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(
             futures::stream::iter(SOURCES)
-                .map(
-                    |Source {
-                         repo,
-                         repo_path,
-                         kind,
-                     }| {
-                        match kind {
-                            SourceKind::Api => chatsounds
-                                .fetch_github_api(repo, repo_path, true)
-                                .map_ok(FetchedSource::Api)
-                                .boxed(),
+                .map(|source| match source {
+                    Source::Api(repo) => chatsounds
+                        .fetch_github_api(repo.name, repo.path, true)
+                        .map_ok(move |data| (repo, SourceData::Api(data)))
+                        .boxed(),
 
-                            SourceKind::Msgpack => chatsounds
-                                .fetch_github_msgpack(repo, repo_path, true)
-                                .map_ok(FetchedSource::Msgpack)
-                                .boxed(),
-                        }
-                        .map_ok(move |fetched_source| (*repo, *repo_path, fetched_source))
-                    },
-                )
+                    Source::MsgPack(repo) => chatsounds
+                        .fetch_github_msgpack(repo.name, repo.path, true)
+                        .map_ok(move |data| (repo, SourceData::MsgPack(data)))
+                        .boxed(),
+                })
                 .buffered(5),
         );
 
-        let fetched = stream.try_collect::<Vec<_>>().await.unwrap();
+        let fetched = stream.try_collect::<Vec<_>>().await?;
 
-        for (repo, repo_path, fetched_source) in fetched {
-            match fetched_source {
-                FetchedSource::Api(data) => {
-                    chatsounds.load_github_api(repo, repo_path, data).unwrap();
-                }
-
-                FetchedSource::Msgpack(data) => {
-                    chatsounds
-                        .load_github_msgpack(repo, repo_path, data)
-                        .unwrap();
+        for (repo, data) in fetched {
+            match data {
+                SourceData::Api(data) => chatsounds.load_github_api(repo.name, repo.path, data)?,
+                SourceData::MsgPack(data) => {
+                    chatsounds.load_github_msgpack(repo.name, repo.path, data)?
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -171,16 +147,18 @@ impl Module for ChatsoundsModule {
 
                     chatsounds
                 } else {
-                    panic!("plugins not a dir?");
+                    print(format!(
+                        "{}plugins not a dir?",
+                        classicube_helpers::color::RED
+                    ));
+                    return;
                 }
             };
 
-            status("chatsounds fetching sources...");
-
-            ChatsoundsModule::load_sources(&mut chatsounds).await;
+            if let Err(e) = ChatsoundsModule::load_sources(&mut chatsounds).await {
+                print(format!("{}{:?}", classicube_helpers::color::RED, e));
+            }
             *chatsounds_option = Some(chatsounds);
-
-            status("done fetching sources");
 
             drop(chatsounds_option);
         });
