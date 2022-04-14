@@ -16,9 +16,11 @@ use chatsounds::Chatsounds;
 use classicube_helpers::{entities::Entities, tab_list::TabList};
 use futures::prelude::*;
 use std::{fs, path::Path};
+use tracing::error;
 
 pub const VOLUME_NORMAL: f32 = 0.1;
 
+#[derive(Debug)]
 struct GitHubRepo {
     name: &'static str,
     path: &'static str,
@@ -45,6 +47,7 @@ const SOURCES: &[Source] = &[
         "sound/chatsounds/autoadd",
     ),
     Source::api("PAC3-Server/chatsounds", "sounds/chatsounds"),
+    Source::api("MasterMenSilver/Astral-Dream-Things", "chatsounds"),
     Source::msgpack("PAC3-Server/chatsounds-valve-games", "csgo"),
     Source::msgpack("PAC3-Server/chatsounds-valve-games", "css"),
     Source::msgpack("PAC3-Server/chatsounds-valve-games", "ep1"),
@@ -92,24 +95,40 @@ impl ChatsoundsModule {
                 .map(|source| match source {
                     Source::Api(repo) => chatsounds
                         .fetch_github_api(repo.name, repo.path, true)
-                        .map_ok(move |data| (repo, SourceData::Api(data)))
+                        .map_ok(SourceData::Api)
+                        .map(move |result| (repo, result))
                         .boxed(),
 
                     Source::MsgPack(repo) => chatsounds
                         .fetch_github_msgpack(repo.name, repo.path, true)
-                        .map_ok(move |data| (repo, SourceData::MsgPack(data)))
+                        .map_ok(SourceData::MsgPack)
+                        .map(move |result| (repo, result))
                         .boxed(),
                 })
                 .buffered(5),
         );
 
-        let fetched = stream.try_collect::<Vec<_>>().await?;
+        let fetched = stream.collect::<Vec<_>>().await;
 
-        for (repo, data) in fetched {
-            match data {
-                SourceData::Api(data) => chatsounds.load_github_api(repo.name, repo.path, data)?,
-                SourceData::MsgPack(data) => {
-                    chatsounds.load_github_msgpack(repo.name, repo.path, data)?
+        for (repo, result) in fetched {
+            match result {
+                Ok(data) => match data {
+                    SourceData::Api(data) => {
+                        chatsounds.load_github_api(repo.name, repo.path, data)?
+                    }
+                    SourceData::MsgPack(data) => {
+                        chatsounds.load_github_msgpack(repo.name, repo.path, data)?
+                    }
+                },
+
+                Err(e) => {
+                    error!(?repo, ?e);
+                    print(format!(
+                        "{}{:?}{:?}",
+                        classicube_helpers::color::RED,
+                        repo,
+                        e
+                    ));
                 }
             }
         }
