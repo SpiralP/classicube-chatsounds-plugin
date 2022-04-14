@@ -26,7 +26,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 
 [package.metadata.release]
-disable-publish = true
 tag-message = "Release version {{version}}"
 pre-release-commit-message = "Release {{version}}"
 post-release-commit-message = "Begin {{next_version}}"
