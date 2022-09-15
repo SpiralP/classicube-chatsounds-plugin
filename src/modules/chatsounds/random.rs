@@ -1,11 +1,12 @@
-use lazy_static::lazy_static;
-use rand::prelude::*;
-use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     sync::Mutex,
 };
+
+use lazy_static::lazy_static;
+use rand::prelude::*;
+use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 
 // TODO make this a field on ChatsoundsModule/EventListener
 lazy_static! {

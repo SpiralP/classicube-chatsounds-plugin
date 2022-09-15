@@ -1,3 +1,10 @@
+use std::{cell::Cell, os::raw::c_int, slice};
+
+use anyhow::{anyhow, Result};
+use chatsounds::Chatsounds;
+use classicube_sys::OwnedChatCommand;
+use tracing::error;
+
 use crate::{
     modules::{
         chatsounds::VOLUME_NORMAL, EventHandlerModule, FutureShared, FuturesModule, Module,
@@ -5,11 +12,6 @@ use crate::{
     },
     printer::print,
 };
-use anyhow::{anyhow, Result};
-use chatsounds::Chatsounds;
-use classicube_sys::OwnedChatCommand;
-use std::{cell::Cell, os::raw::c_int, slice};
-use tracing::error;
 
 // TODO move file to helpers
 

@@ -1,11 +1,5 @@
-use crate::{
-    modules::{
-        event_handler::{simulate_char, simulate_key},
-        option::OptionModule,
-        FutureShared, SyncShared,
-    },
-    printer::{print, status_forever},
-};
+use std::collections::HashMap;
+
 use chatsounds::Chatsounds;
 use classicube_sys::{
     InputButtons, InputButtons_KEY_BACKSPACE, InputButtons_KEY_DELETE, InputButtons_KEY_DOWN,
@@ -14,8 +8,16 @@ use classicube_sys::{
     InputButtons_KEY_LSHIFT, InputButtons_KEY_RCTRL, InputButtons_KEY_RIGHT,
     InputButtons_KEY_RSHIFT, InputButtons_KEY_SLASH, InputButtons_KEY_TAB, InputButtons_KEY_UP,
 };
-use std::collections::HashMap;
 use tracing::error;
+
+use crate::{
+    modules::{
+        event_handler::{simulate_char, simulate_key},
+        option::OptionModule,
+        FutureShared, SyncShared,
+    },
+    printer::{print, status_forever},
+};
 
 pub struct Chat {
     open: bool,

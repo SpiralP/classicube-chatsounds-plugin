@@ -1,6 +1,8 @@
-use crate::modules::Module;
-use classicube_sys::{Server, String_AppendConst};
 use std::ffi::CString;
+
+use classicube_sys::{Server, String_AppendConst};
+
+use crate::modules::Module;
 
 pub struct AppNameModule {
     app_name: Option<CString>,

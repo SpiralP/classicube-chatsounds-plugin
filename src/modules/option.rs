@@ -1,9 +1,11 @@
-use crate::modules::Module;
+use std::{collections::HashMap, ffi::CString, os::raw::c_char};
+
 use classicube_sys::{
     keybindNames, InputButtons, Input_Names, KeyBind_Defaults, Options_Get, Options_Set,
     OwnedString, STRING_SIZE,
 };
-use std::{collections::HashMap, ffi::CString, os::raw::c_char};
+
+use crate::modules::Module;
 
 pub struct OptionModule {
     pub open_chat_key: Option<InputButtons>,

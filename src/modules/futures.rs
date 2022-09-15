@@ -1,9 +1,11 @@
-use crate::modules::Module;
+use std::time::Duration;
+
 use futures::prelude::*;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::time::Duration;
 use tokio::runtime::{Builder, Runtime};
+
+use crate::modules::Module;
 
 lazy_static! {
     static ref TOKIO_RUNTIME: Mutex<Option<Runtime>> = Mutex::new(None);

@@ -1,8 +1,10 @@
-use crate::modules::SyncShared;
+use std::sync::{Arc, Weak};
+
 use chatsounds::SpatialSink;
 use classicube_helpers::entities::{Entities, ENTITY_SELF_ID};
 use classicube_sys::Vec3;
-use std::sync::{Arc, Weak};
+
+use crate::modules::SyncShared;
 
 pub struct EntityEmitter {
     entity_id: u8,

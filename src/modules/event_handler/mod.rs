@@ -1,8 +1,8 @@
 mod outgoing_events;
 mod types;
 
-pub use self::types::*;
-use crate::modules::Module;
+use std::os::raw::c_int;
+
 use classicube_helpers::{
     events::{
         chat::{ChatReceivedEvent, ChatReceivedEventHandler},
@@ -17,7 +17,9 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 pub use outgoing_events::*;
 use parking_lot::Mutex;
-use std::os::raw::c_int;
+
+pub use self::types::*;
+use crate::modules::Module;
 
 lazy_static! {
     pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
@@ -105,7 +107,7 @@ impl EventHandlerModule {
             },
 
             OutgoingEvent::InputDown(key, repeat) => unsafe {
-                Event_RaiseInput(&mut InputEvents.Down, key as _, if repeat { 1 } else { 0 });
+                Event_RaiseInput(&mut InputEvents.Down, key as _, u8::from(repeat));
             },
 
             OutgoingEvent::InputUp(key) => unsafe {

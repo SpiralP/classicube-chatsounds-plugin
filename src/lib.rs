@@ -3,10 +3,11 @@ mod logger;
 mod modules;
 mod printer;
 
+use std::{os::raw::c_int, ptr};
+
 use classicube_sys::IGameComponent;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::{os::raw::c_int, ptr};
 use tracing::debug;
 
 lazy_static! {

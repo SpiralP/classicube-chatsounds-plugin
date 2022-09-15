@@ -3,6 +3,14 @@ mod event_listener;
 mod random;
 mod send_entity;
 
+use std::{fs, path::Path};
+
+use anyhow::Result;
+use chatsounds::Chatsounds;
+use classicube_helpers::{entities::Entities, tab_list::TabList};
+use futures::prelude::*;
+use tracing::error;
+
 use self::event_listener::ChatsoundsEventListener;
 use super::{FutureShared, SyncShared};
 use crate::{
@@ -11,12 +19,6 @@ use crate::{
     },
     printer::print,
 };
-use anyhow::Result;
-use chatsounds::Chatsounds;
-use classicube_helpers::{entities::Entities, tab_list::TabList};
-use futures::prelude::*;
-use std::{fs, path::Path};
-use tracing::error;
 
 pub const VOLUME_NORMAL: f32 = 0.1;
 
@@ -94,13 +96,13 @@ impl ChatsoundsModule {
             futures::stream::iter(SOURCES)
                 .map(|source| match source {
                     Source::Api(repo) => chatsounds
-                        .fetch_github_api(repo.name, repo.path, true)
+                        .fetch_github_api(repo.name, repo.path)
                         .map_ok(SourceData::Api)
                         .map(move |result| (repo, result))
                         .boxed(),
 
                     Source::MsgPack(repo) => chatsounds
-                        .fetch_github_msgpack(repo.name, repo.path, true)
+                        .fetch_github_msgpack(repo.name, repo.path)
                         .map_ok(SourceData::MsgPack)
                         .map(move |result| (repo, result))
                         .boxed(),

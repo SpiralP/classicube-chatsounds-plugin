@@ -1,9 +1,11 @@
-use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
+use std::time::Instant;
+
 use classicube_sys::MsgType_MSG_TYPE_CLIENTSTATUS_2;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::time::Instant;
 use tracing::info;
+
+use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
 
 lazy_static! {
     pub static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());

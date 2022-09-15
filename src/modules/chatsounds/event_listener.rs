@@ -1,3 +1,10 @@
+use chatsounds::Chatsounds;
+use classicube_helpers::{
+    entities::{Entities, ENTITY_SELF_ID},
+    tab_list::{remove_color, TabList},
+};
+use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
+
 use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
     helpers::is_continuation_message,
@@ -8,12 +15,6 @@ use crate::{
     },
     printer::print,
 };
-use chatsounds::Chatsounds;
-use classicube_helpers::{
-    entities::{Entities, ENTITY_SELF_ID},
-    tab_list::{remove_color, TabList},
-};
-use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
 
 pub struct ChatsoundsEventListener {
     chatsounds: FutureShared<Option<Chatsounds>>,

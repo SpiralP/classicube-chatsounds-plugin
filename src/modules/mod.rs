@@ -6,19 +6,21 @@ pub mod event_handler;
 pub mod futures;
 pub mod option;
 
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
+
+use ::futures::lock::Mutex as FutureMutex;
+use classicube_helpers::{entities::Entities, tab_list::TabList};
+
 pub use self::{
     app_name::AppNameModule, autocomplete::AutocompleteModule, chatsounds::ChatsoundsModule,
     command::CommandModule, event_handler::EventHandlerModule, futures::FuturesModule,
     option::OptionModule,
 };
 use crate::printer::PrinterEventListener;
-use ::futures::lock::Mutex as FutureMutex;
-use classicube_helpers::{entities::Entities, tab_list::TabList};
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
 
 pub trait Module {
     fn load(&mut self);
