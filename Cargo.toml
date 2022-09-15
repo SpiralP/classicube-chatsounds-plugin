@@ -1,6 +1,6 @@
 [package]
 name = "classicube-chatsounds-plugin"
-version = "3.7.2-alpha"
+version = "3.8.0"
 authors = ["SpiralP <spiral.palmer@gmail.com>"]
 edition = "2021"
 publish = false
