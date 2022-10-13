@@ -454,9 +454,10 @@ impl Chat {
                 return;
             }
 
-            self.handle_char_insert(key);
-
-            self.update_hints().await;
+            if key.is_alphanumeric() || key == ' ' {
+                self.handle_char_insert(key);
+                self.update_hints().await;
+            }
         }
     }
 }
