@@ -71,7 +71,7 @@ impl OptionModule {
 
             let key = self
                 .get(option_name)
-                .and_then(|key_name| OptionModule::get_key_from_input_name(&key_name))
+                .and_then(OptionModule::get_key_from_input_name)
                 .unwrap_or_else(|| KeyBind_Defaults[i] as InputButtons);
 
             map.insert(keybind_name, key);
