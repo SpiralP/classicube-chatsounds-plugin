@@ -1,20 +1,30 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla/master";
   };
 
-  outputs = { nixpkgs, ... }:
+  outputs = { nixpkgs, nixpkgs-mozilla, ... }:
     let
       inherit (nixpkgs) lib;
-    in
-    {
-      packages = lib.genAttrs lib.systems.flakeExposed (system:
+
+      makePackage = (system: dev:
         let
           pkgs = import nixpkgs {
             inherit system;
+            overlays = [ nixpkgs-mozilla.overlays.rust ];
           };
 
-          inherit (pkgs) rustPlatform dockerTools buildNpmPackage;
+          rust = (pkgs.rustChannelOf {
+            channel = "1.70.0";
+            sha256 = "sha256-gdYqng0y9iHYzYPAdkC/ka3DRny3La/S5G8ASj0Ayyc=";
+          }).rust.override {
+            extensions = if dev then [ "rust-src" ] else [ ];
+          };
+          rustPlatform = pkgs.makeRustPlatform {
+            cargo = rust;
+            rustc = rust;
+          };
         in
         rec {
           default = rustPlatform.buildRustPackage {
@@ -68,5 +78,11 @@
           };
         }
       );
-    };
+    in
+    builtins.foldl' lib.recursiveUpdate { } (builtins.map
+      (system: {
+        devShells.${system} = makePackage system true;
+        packages.${system} = makePackage system false;
+      })
+      lib.systems.flakeExposed);
 }
