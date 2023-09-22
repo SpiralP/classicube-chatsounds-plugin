@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ffi::CString, os::raw::c_char};
 
 use classicube_sys::{
-    keybindNames, InputButtons, Input_Names, KeyBind_Defaults, Options_Get, Options_Set,
+    keybindNames, storageNames, InputButtons, KeyBind_NormalDefaults, Options_Get, Options_Set,
     OwnedString, STRING_SIZE,
 };
 
@@ -23,7 +23,7 @@ impl OptionModule {
     pub fn get_key_from_input_name<S: AsRef<str>>(s: S) -> Option<InputButtons> {
         let s = s.as_ref();
 
-        Input_Names
+        storageNames
             .iter()
             .position(|&item| item == s)
             .map(|n| n as InputButtons)
@@ -72,7 +72,7 @@ impl OptionModule {
             let key = self
                 .get(option_name)
                 .and_then(OptionModule::get_key_from_input_name)
-                .unwrap_or_else(|| KeyBind_Defaults[i] as InputButtons);
+                .unwrap_or_else(|| KeyBind_NormalDefaults[i] as InputButtons);
 
             map.insert(keybind_name, key);
         }
