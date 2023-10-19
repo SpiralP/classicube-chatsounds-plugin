@@ -18,8 +18,8 @@
           rustPlatform =
             let
               rust = (pkgs.rustChannelOf {
-                channel = "1.72.1";
-                sha256 = "sha256-dxE7lmCFWlq0nl/wKcmYvpP9zqQbBitAQgZ1zx9Ooik=";
+                channel = "1.73.0";
+                sha256 = "sha256-rLP8+fTxnPHoR96ZJiCa/5Ans1OojI7MLsmSqR2ip8o=";
               }).rust.override {
                 extensions = if dev then [ "rust-src" ] else [ ];
               };
