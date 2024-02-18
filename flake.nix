@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla/master";
   };
 
@@ -15,19 +15,16 @@
             overlays = [ nixpkgs-mozilla.overlays.rust ];
           };
 
-          rustPlatform =
-            let
-              rust = (pkgs.rustChannelOf {
-                channel = "1.73.0";
-                sha256 = "sha256-rLP8+fTxnPHoR96ZJiCa/5Ans1OojI7MLsmSqR2ip8o=";
-              }).rust.override {
-                extensions = if dev then [ "rust-src" ] else [ ];
-              };
-            in
-            pkgs.makeRustPlatform {
-              cargo = rust;
-              rustc = rust;
-            };
+          rust = (pkgs.rustChannelOf {
+            channel = "1.75.0";
+            sha256 = "sha256-SXRtAuO4IqNOQq+nLbrsDFbVk+3aVA8NNpSZsKlVH/8=";
+          }).rust.override {
+            extensions = if dev then [ "rust-src" ] else [ ];
+          };
+          rustPlatform = pkgs.makeRustPlatform {
+            cargo = rust;
+            rustc = rust;
+          };
         in
         rec {
           default = rustPlatform.buildRustPackage {
@@ -55,8 +52,7 @@
               outputHashes = {
                 "async-dispatcher-0.1.0" = "sha256-rqpQ176/PnI9vvPrwQvK3GJbryjb3hHkb+o1RyCZ3Vg=";
                 "chatsounds-0.2.0" = "sha256-HJq5MXkXnEKGOHX+DRzVhQjLTPmar0MWW7aItqrlpys=";
-                "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-yUl0B0E8P618S0662u70zUGRAG2bETVmb4G7Tbv+ZP4=";
-                "classicube-sys-3.0.0+classicube.1.3.6" = "sha256-algb9pgkJdXaswcB6m8DITzORGtOQkSgkhVvwgNXAhI=";
+                "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-YvXgatSnaM9YJhk0Sx9dVzn0pl6tOUPrm394aj8qk1o=";
                 "color-backtrace-0.3.0" = "sha256-wVf6EEmD/PqHGJtVUXBg5y2kXPXxGtQTU52WurrFv+M=";
               };
             };
