@@ -133,8 +133,7 @@ impl Module for EventHandlerModule {
                       message,
                       message_type,
                   }| {
-                let module = ptr as *mut EventHandlerModule;
-                let module = unsafe { &mut *module };
+                let module = unsafe { &mut *ptr };
 
                 if module.simulating {
                     return;
@@ -150,8 +149,7 @@ impl Module for EventHandlerModule {
 
         self.input_down
             .on(move |input::DownEvent { key, repeating }| {
-                let module = ptr as *mut EventHandlerModule;
-                let module = unsafe { &mut *module };
+                let module = unsafe { &mut *ptr };
 
                 if module.simulating {
                     return;
@@ -162,8 +160,7 @@ impl Module for EventHandlerModule {
             });
 
         self.input_press.on(move |input::PressEvent { key }| {
-            let module = ptr as *mut EventHandlerModule;
-            let module = unsafe { &mut *module };
+            let module = unsafe { &mut *ptr };
 
             if module.simulating {
                 return;
@@ -174,8 +171,7 @@ impl Module for EventHandlerModule {
         });
 
         self.input_up.on(move |input::UpEvent { key }| {
-            let module = ptr as *mut EventHandlerModule;
-            let module = unsafe { &mut *module };
+            let module = unsafe { &mut *ptr };
 
             if module.simulating {
                 return;
@@ -186,8 +182,7 @@ impl Module for EventHandlerModule {
         });
 
         self.tick_callback.on(move |_event| {
-            let module = ptr as *mut EventHandlerModule;
-            let module = unsafe { &mut *module };
+            let module = unsafe { &mut *ptr };
 
             module.handle_incoming_event(IncomingEvent::Tick);
             module.handle_outgoing_events();
