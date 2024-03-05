@@ -16,7 +16,7 @@ impl AppNameModule {
 
 impl Module for AppNameModule {
     fn load(&mut self) {
-        let append_app_name = CString::new(format!(" +cs{}", env!("CARGO_PKG_VERSION"))).unwrap();
+        let append_app_name = CString::new(format!(" cs{}", env!("CARGO_PKG_VERSION"))).unwrap();
 
         let c_str = append_app_name.as_ptr();
         self.app_name = Some(append_app_name);
