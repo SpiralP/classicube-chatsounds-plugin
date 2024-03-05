@@ -1,33 +1,20 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
-    nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla/master";
   };
 
-  outputs = { nixpkgs, nixpkgs-mozilla, ... }:
+  outputs = { nixpkgs, ... }:
     let
       inherit (nixpkgs) lib;
 
-      makePackage = (system: dev:
+      makePackages = (system: dev:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ nixpkgs-mozilla.overlays.rust ];
-          };
-
-          rust = (pkgs.rustChannelOf {
-            channel = "1.75.0";
-            sha256 = "sha256-SXRtAuO4IqNOQq+nLbrsDFbVk+3aVA8NNpSZsKlVH/8=";
-          }).rust.override {
-            extensions = if dev then [ "rust-src" ] else [ ];
-          };
-          rustPlatform = pkgs.makeRustPlatform {
-            cargo = rust;
-            rustc = rust;
           };
         in
         rec {
-          default = rustPlatform.buildRustPackage {
+          default = pkgs.rustPlatform.buildRustPackage {
             name = "classicube-chatsounds-plugin";
             src = lib.cleanSourceWith rec {
               src = ./.;
@@ -60,7 +47,12 @@
             nativeBuildInputs = with pkgs; [
               pkg-config
               rustPlatform.bindgenHook
-            ];
+            ] ++ (if dev then
+              with pkgs; [
+                clippy
+                rustfmt
+                rust-analyzer
+              ] else [ ]);
 
             buildInputs = with pkgs; [
               alsa-lib
@@ -80,8 +72,8 @@
     in
     builtins.foldl' lib.recursiveUpdate { } (builtins.map
       (system: {
-        devShells.${system} = makePackage system true;
-        packages.${system} = makePackage system false;
+        devShells.${system} = makePackages system true;
+        packages.${system} = makePackages system false;
       })
       lib.systems.flakeExposed);
 }
