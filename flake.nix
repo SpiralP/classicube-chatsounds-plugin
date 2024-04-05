@@ -13,19 +13,15 @@
             inherit system;
           };
         in
-        rec {
+        {
           default = pkgs.rustPlatform.buildRustPackage {
             name = "classicube-chatsounds-plugin";
-            src = lib.cleanSourceWith rec {
+            src = lib.cleanSourceWith {
               src = ./.;
               filter = path: type:
                 lib.cleanSourceFilter path type
                 && (
-                  let
-                    baseName = builtins.baseNameOf (builtins.toString path);
-                    relPath = lib.removePrefix (builtins.toString ./.) (builtins.toString path);
-                  in
-                  lib.any (re: builtins.match re relPath != null) [
+                  lib.any (re: builtins.match re (lib.removePrefix (builtins.toString ./.) (builtins.toString path)) != null) [
                     "/Cargo.toml"
                     "/Cargo.lock"
                     "/src"
@@ -38,7 +34,7 @@
               lockFile = ./Cargo.lock;
               outputHashes = {
                 "async-dispatcher-0.1.0" = "sha256-rqpQ176/PnI9vvPrwQvK3GJbryjb3hHkb+o1RyCZ3Vg=";
-                "chatsounds-0.2.0" = "sha256-HJq5MXkXnEKGOHX+DRzVhQjLTPmar0MWW7aItqrlpys=";
+                "chatsounds-0.2.0" = "sha256-PnggDT0oWtRRowrGoD8Bi8+Fpss6SKzQ1PDk3n1tCBM=";
                 "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-V5PBZR0rj42crA1fGUjMk4rDh0ZpjjNcbMCe6bgotW8=";
                 "color-backtrace-0.3.0" = "sha256-wVf6EEmD/PqHGJtVUXBg5y2kXPXxGtQTU52WurrFv+M=";
               };
