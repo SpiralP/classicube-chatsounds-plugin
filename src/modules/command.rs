@@ -123,7 +123,7 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, 
             FuturesModule::block_future(async {
                 if let Err(e) = command_module.command_callback(args).await {
                     error!(?e);
-                    print(format!("{}{:?}", classicube_helpers::color::RED, e));
+                    print(format!("{}{}", classicube_helpers::color::RED, e));
                 }
             });
 

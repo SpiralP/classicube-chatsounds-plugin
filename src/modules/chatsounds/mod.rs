@@ -3,9 +3,9 @@ mod event_listener;
 mod random;
 mod send_entity;
 
-use std::{fs, path::Path};
+use std::{fmt::Display, fs, path::Path};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chatsounds::Chatsounds;
 use classicube_helpers::{entities::Entities, tab_list::TabList};
 use futures::prelude::*;
@@ -26,6 +26,12 @@ pub const VOLUME_NORMAL: f32 = 0.1;
 struct GitHubRepo {
     name: &'static str,
     path: &'static str,
+}
+
+impl Display for GitHubRepo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "repo {}/{}", self.name, self.path)
+    }
 }
 
 enum Source {
@@ -125,12 +131,7 @@ impl ChatsoundsModule {
 
                 Err(e) => {
                     error!(?repo, ?e);
-                    print(format!(
-                        "{}{:?}{:?}",
-                        classicube_helpers::color::RED,
-                        repo,
-                        e
-                    ));
+                    print(format!("{}{} {}", classicube_helpers::color::RED, repo, e));
                 }
             }
         }
@@ -154,32 +155,38 @@ impl Module for ChatsoundsModule {
         FuturesModule::spawn_future(async move {
             let mut chatsounds_option = chatsounds_option.lock().await;
 
-            let mut chatsounds = {
-                if fs::metadata("plugins")
-                    .map(|meta| meta.is_dir())
-                    .unwrap_or(false)
-                {
-                    let path = Path::new("plugins/chatsounds");
-                    fs::create_dir_all(path).unwrap();
+            let future = async {
+                let mut chatsounds = {
+                    if fs::metadata("plugins")
+                        .map(|meta| meta.is_dir())
+                        .unwrap_or(false)
+                    {
+                        let path = Path::new("plugins/chatsounds");
+                        fs::create_dir_all(path).unwrap();
 
-                    let mut chatsounds = Chatsounds::new(path).unwrap();
+                        let mut chatsounds = Chatsounds::new(path).unwrap();
 
-                    chatsounds.set_volume(VOLUME_NORMAL * volume);
+                        chatsounds.set_volume(VOLUME_NORMAL * volume);
 
-                    chatsounds
-                } else {
-                    print(format!(
-                        "{}plugins not a dir?",
-                        classicube_helpers::color::RED
-                    ));
-                    return;
-                }
+                        chatsounds
+                    } else {
+                        bail!("plugins is not a dir or doesn't exist");
+                    }
+                };
+
+                ChatsoundsModule::load_sources(&mut chatsounds).await?;
+
+                Ok(chatsounds)
             };
 
-            if let Err(e) = ChatsoundsModule::load_sources(&mut chatsounds).await {
-                print(format!("{}{:?}", classicube_helpers::color::RED, e));
+            match future.await {
+                Ok(chatsounds) => {
+                    *chatsounds_option = Some(chatsounds);
+                }
+                Err(e) => {
+                    print(format!("{}{}", classicube_helpers::color::RED, e));
+                }
             }
-            *chatsounds_option = Some(chatsounds);
 
             drop(chatsounds_option);
         });
