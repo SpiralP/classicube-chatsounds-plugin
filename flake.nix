@@ -16,19 +16,12 @@
         {
           default = pkgs.rustPlatform.buildRustPackage {
             name = "classicube-chatsounds-plugin";
-            src = lib.cleanSourceWith {
-              src = ./.;
-              filter = path: type:
-                lib.cleanSourceFilter path type
-                && (
-                  lib.any (re: builtins.match re (lib.removePrefix (builtins.toString ./.) (builtins.toString path)) != null) [
-                    "/Cargo.toml"
-                    "/Cargo.lock"
-                    "/src"
-                    "/src/.*"
-                  ]
-                );
-            };
+            src = lib.sourceByRegex ./. [
+              "^\.cargo(/.*)?$"
+              "^build\.rs$"
+              "^Cargo\.(lock|toml)$"
+              "^src(/.*)?$"
+            ];
 
             cargoLock = {
               lockFile = ./Cargo.lock;
