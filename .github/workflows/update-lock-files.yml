@@ -14,20 +14,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  update_lock_files:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix flake update
-      - run: git diff && git add -v .
-      - run: nix develop --print-build-logs . -c cargo update
-      - run: git diff && git add -v .
-      - run: nix build --print-build-logs .
-      - uses: peter-evans/create-pull-request@v6
-        with:
-          branch: update-lock-files
-          title: Update lock files
-          body: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          commit-message: "Update lock files"
+  update_nix_hashes:
+    uses: SpiralP/github-reusable-workflows/.github/workflows/update-lock-files.yml@main
+    with:
+      rust-attribute: default
