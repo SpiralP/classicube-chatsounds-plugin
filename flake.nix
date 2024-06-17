@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
   };
 
   outputs = { nixpkgs, ... }:
@@ -12,10 +12,13 @@
           pkgs = import nixpkgs {
             inherit system;
           };
+          rustManifest = lib.importTOML ./Cargo.toml;
         in
         {
           default = pkgs.rustPlatform.buildRustPackage {
-            name = "classicube-chatsounds-plugin";
+            pname = rustManifest.package.name;
+            version = rustManifest.package.version;
+
             src = lib.sourceByRegex ./. [
               "^\.cargo(/.*)?$"
               "^build\.rs$"
