@@ -13,9 +13,8 @@
             inherit system;
           };
           rustManifest = lib.importTOML ./Cargo.toml;
-        in
-        {
-          default = pkgs.rustPlatform.buildRustPackage {
+
+          defaultAttrs = {
             pname = rustManifest.package.name;
             version = rustManifest.package.version;
 
@@ -36,16 +35,6 @@
               };
             };
 
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-              rustPlatform.bindgenHook
-            ] ++ (if dev then
-              with pkgs; [
-                clippy
-                rustfmt
-                rust-analyzer
-              ] else [ ]);
-
             buildInputs = with pkgs; [
               alsa-lib
               at-spi2-atk
@@ -57,8 +46,35 @@
               pango
             ];
 
-            doCheck = false;
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+              rustPlatform.bindgenHook
+            ] ++ (if dev then
+              with pkgs; ([
+                cargo-release
+                clippy
+                (rustfmt.override { asNightly = true; })
+                rust-analyzer
+              ]) else [ ]);
           };
+        in
+        {
+          default = pkgs.rustPlatform.buildRustPackage defaultAttrs;
+
+          debug = (pkgs.enableDebugging {
+            inherit (pkgs) stdenv;
+            override = (attrs: pkgs.makeRustPlatform ({
+              inherit (pkgs) rustc cargo;
+            } // attrs));
+          }).buildRustPackage (
+            (defaultAttrs // {
+              pname = "${defaultAttrs.pname}-debug";
+
+              buildType = "debug";
+
+              hardeningDisable = [ "all" ];
+            })
+          );
         }
       );
     in
