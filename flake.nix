@@ -30,7 +30,8 @@
               outputHashes = {
                 "async-dispatcher-0.1.0" = "sha256-rqpQ176/PnI9vvPrwQvK3GJbryjb3hHkb+o1RyCZ3Vg=";
                 "chatsounds-0.2.0" = "sha256-PnggDT0oWtRRowrGoD8Bi8+Fpss6SKzQ1PDk3n1tCBM=";
-                "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-V5PBZR0rj42crA1fGUjMk4rDh0ZpjjNcbMCe6bgotW8=";
+                "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-yNQ7mDqa/HY8ahliHTL3EAMGCQRfH7hGdgieWASbfYc=";
+                "classicube-sys-3.0.4+classicube.1.3.6" = "sha256-aKoQfOhw7ibuAdZMQnZE2ddhY9yp80iEXRLEhuqc5hI=";
                 "color-backtrace-0.3.0" = "sha256-wVf6EEmD/PqHGJtVUXBg5y2kXPXxGtQTU52WurrFv+M=";
               };
             };

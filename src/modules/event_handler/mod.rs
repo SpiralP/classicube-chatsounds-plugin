@@ -106,12 +106,17 @@ impl EventHandlerModule {
                 Event_RaiseInt(&mut InputEvents.Press, c_int::from(chr as u8));
             },
 
-            OutgoingEvent::InputDown(key, repeat) => unsafe {
-                Event_RaiseInput(&mut InputEvents.Down, key as _, u8::from(repeat));
+            OutgoingEvent::InputDown(key, repeating, device) => unsafe {
+                Event_RaiseInput(
+                    &mut InputEvents.Down,
+                    key as _,
+                    u8::from(repeating),
+                    device.0,
+                );
             },
 
-            OutgoingEvent::InputUp(key) => unsafe {
-                Event_RaiseInt(&mut InputEvents.Up, key as _);
+            OutgoingEvent::InputUp(key, repeating, device) => unsafe {
+                Event_RaiseInput(&mut InputEvents.Up, key as _, u8::from(repeating), device.0);
             },
         }
     }
@@ -147,17 +152,26 @@ impl Module for EventHandlerModule {
             },
         );
 
-        self.input_down
-            .on(move |input::DownEvent { key, repeating }| {
+        self.input_down.on(
+            move |input::DownEvent {
+                      key,
+                      repeating,
+                      device,
+                  }| {
                 let module = unsafe { &mut *ptr };
 
                 if module.simulating {
                     return;
                 }
 
-                module.handle_incoming_event(IncomingEvent::InputDown(*key, *repeating));
+                module.handle_incoming_event(IncomingEvent::InputDown(
+                    *key,
+                    *repeating,
+                    InputDeviceSend(*device),
+                ));
                 module.handle_outgoing_events();
-            });
+            },
+        );
 
         self.input_press.on(move |input::PressEvent { key }| {
             let module = unsafe { &mut *ptr };
@@ -170,16 +184,17 @@ impl Module for EventHandlerModule {
             module.handle_outgoing_events();
         });
 
-        self.input_up.on(move |input::UpEvent { key }| {
-            let module = unsafe { &mut *ptr };
+        self.input_up
+            .on(move |input::UpEvent { key, repeating, .. }| {
+                let module = unsafe { &mut *ptr };
 
-            if module.simulating {
-                return;
-            }
+                if module.simulating {
+                    return;
+                }
 
-            module.handle_incoming_event(IncomingEvent::InputUp(*key));
-            module.handle_outgoing_events();
-        });
+                module.handle_incoming_event(IncomingEvent::InputUp(*key, *repeating));
+                module.handle_outgoing_events();
+            });
 
         self.tick_callback.on(move |_event| {
             let module = unsafe { &mut *ptr };

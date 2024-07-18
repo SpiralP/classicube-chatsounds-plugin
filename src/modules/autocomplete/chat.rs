@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::{
     modules::{
-        event_handler::{simulate_char, simulate_key},
+        event_handler::{simulate_char, simulate_key, InputDeviceSend},
         option::OptionModule,
         FutureShared, SyncShared,
     },
@@ -166,12 +166,12 @@ impl Chat {
         self.text.iter().collect()
     }
 
-    pub fn set_text<T: Into<String>>(&mut self, text: T) {
+    pub fn set_text<T: Into<String>>(&mut self, text: T, device: InputDeviceSend) {
         let text = text.into();
 
-        simulate_key(InputButtons_CCKEY_END);
+        simulate_key(InputButtons_CCKEY_END, device);
         for _ in 0..192 {
-            simulate_key(InputButtons_CCKEY_BACKSPACE);
+            simulate_key(InputButtons_CCKEY_BACKSPACE, device);
         }
 
         for chr in text.chars() {
@@ -194,7 +194,7 @@ impl Chat {
 
     #[allow(clippy::cognitive_complexity)]
     #[allow(clippy::too_many_lines)]
-    async fn handle_key(&mut self, key: InputButtons) {
+    async fn handle_key(&mut self, key: InputButtons, device: InputDeviceSend) {
         if key == InputButtons_CCKEY_LEFT {
             if self.is_ctrl_held() {
                 let mut found_non_space = false;
@@ -351,15 +351,20 @@ impl Chat {
 
                 let (_pos, sentence) = &hints[show_pos];
                 let sentence = sentence.to_string();
-                self.set_text(sentence);
+                self.set_text(sentence, device);
             }
 
             self.render_hints();
         }
     }
 
-    pub async fn handle_key_down(&mut self, key: InputButtons, repeat: bool) {
-        if !repeat {
+    pub async fn handle_key_down(
+        &mut self,
+        key: InputButtons,
+        repeating: bool,
+        device: InputDeviceSend,
+    ) {
+        if !repeating {
             if !self.open && (key == self.open_chat_key || key == InputButtons_CCKEY_SLASH) {
                 self.open = true;
                 self.text.clear();
@@ -403,10 +408,10 @@ impl Chat {
             }
 
             self.handle_held_keys(key, true);
-        } // if !repeat
+        } // if !repeating
 
         if self.open {
-            self.handle_key(key).await;
+            self.handle_key(key, device).await;
         }
     }
 

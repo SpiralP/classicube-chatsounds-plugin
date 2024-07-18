@@ -65,11 +65,11 @@ impl AutocompleteEventListener {
                         chat.handle_key_press(key).await;
                     }
 
-                    IncomingEvent::InputDown(key, repeat) => {
-                        chat.handle_key_down(key, repeat).await;
+                    IncomingEvent::InputDown(key, repeating, device) => {
+                        chat.handle_key_down(key, repeating, device).await;
                     }
 
-                    IncomingEvent::InputUp(key) => {
+                    IncomingEvent::InputUp(key, _repeating) => {
                         chat.handle_key_up(key).await;
                     }
 
@@ -87,7 +87,7 @@ impl IncomingEventListener for AutocompleteEventListener {
         match event {
             IncomingEvent::InputPress(_)
             | IncomingEvent::InputDown(..)
-            | IncomingEvent::InputUp(_) => {
+            | IncomingEvent::InputUp(..) => {
                 // TODO somehow block here on tab key_down
 
                 // send and process in the same order

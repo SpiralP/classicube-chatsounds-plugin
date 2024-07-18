@@ -82,17 +82,17 @@ impl EntityEmitter {
         // ));
 
         let mut left_ear_pos = self_pos;
-        left_ear_pos.X += HEAD_SIZE * left_cos; // x
-        left_ear_pos.Z += HEAD_SIZE * left_sin; // z
+        left_ear_pos.x += HEAD_SIZE * left_cos; // x
+        left_ear_pos.z += HEAD_SIZE * left_sin; // z
 
         let mut right_ear_pos = self_pos;
-        right_ear_pos.X += HEAD_SIZE * right_cos; // x
-        right_ear_pos.Z += HEAD_SIZE * right_sin; // z
+        right_ear_pos.x += HEAD_SIZE * right_cos; // x
+        right_ear_pos.z += HEAD_SIZE * right_sin; // z
 
         (
-            [emitter_pos.X, emitter_pos.Y, emitter_pos.Z],
-            [left_ear_pos.X, left_ear_pos.Y, left_ear_pos.Z],
-            [right_ear_pos.X, right_ear_pos.Y, right_ear_pos.Z],
+            [emitter_pos.x, emitter_pos.y, emitter_pos.z],
+            [left_ear_pos.x, left_ear_pos.y, left_ear_pos.z],
+            [right_ear_pos.x, right_ear_pos.y, right_ear_pos.z],
         )
     }
 

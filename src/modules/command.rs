@@ -93,7 +93,7 @@ impl CommandModule {
 
 // hacky fix because c_command_callback can't get instance
 thread_local!(
-    static COMMAND_MODULE: Cell<Option<*mut CommandModule>> = Cell::new(None);
+    static COMMAND_MODULE: Cell<Option<*mut CommandModule>> = const { Cell::new(None) };
 );
 
 impl Module for CommandModule {
