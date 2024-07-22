@@ -1,7 +1,7 @@
 mod outgoing_events;
 mod types;
 
-use std::os::raw::c_int;
+use std::{os::raw::c_int, ptr};
 
 use classicube_helpers::{
     events::{
@@ -106,17 +106,22 @@ impl EventHandlerModule {
                 Event_RaiseInt(&mut InputEvents.Press, c_int::from(chr as u8));
             },
 
-            OutgoingEvent::InputDown(key, repeating, device) => unsafe {
+            OutgoingEvent::InputDown(key, repeating) => unsafe {
                 Event_RaiseInput(
                     &mut InputEvents.Down,
                     key as _,
                     u8::from(repeating),
-                    device.0,
+                    ptr::null_mut(),
                 );
             },
 
-            OutgoingEvent::InputUp(key, repeating, device) => unsafe {
-                Event_RaiseInput(&mut InputEvents.Up, key as _, u8::from(repeating), device.0);
+            OutgoingEvent::InputUp(key, repeating) => unsafe {
+                Event_RaiseInput(
+                    &mut InputEvents.Up,
+                    key as _,
+                    u8::from(repeating),
+                    ptr::null_mut(),
+                );
             },
         }
     }
@@ -152,26 +157,17 @@ impl Module for EventHandlerModule {
             },
         );
 
-        self.input_down.on(
-            move |input::DownEvent {
-                      key,
-                      repeating,
-                      device,
-                  }| {
+        self.input_down
+            .on(move |input::DownEvent { key, repeating, .. }| {
                 let module = unsafe { &mut *ptr };
 
                 if module.simulating {
                     return;
                 }
 
-                module.handle_incoming_event(IncomingEvent::InputDown(
-                    *key,
-                    *repeating,
-                    InputDeviceSend(*device),
-                ));
+                module.handle_incoming_event(IncomingEvent::InputDown(*key, *repeating));
                 module.handle_outgoing_events();
-            },
-        );
+            });
 
         self.input_press.on(move |input::PressEvent { key }| {
             let module = unsafe { &mut *ptr };

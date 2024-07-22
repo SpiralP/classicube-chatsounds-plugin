@@ -65,12 +65,12 @@ impl AutocompleteEventListener {
                         chat.handle_key_press(key).await;
                     }
 
-                    IncomingEvent::InputDown(key, repeating, device) => {
-                        chat.handle_key_down(key, repeating, device).await;
+                    IncomingEvent::InputDown(key, repeat) => {
+                        chat.handle_key_down(key, repeat).await;
                     }
 
-                    IncomingEvent::InputUp(key, _repeating) => {
-                        chat.handle_key_up(key).await;
+                    IncomingEvent::InputUp(key, repeating) => {
+                        chat.handle_key_up(key, repeating).await;
                     }
 
                     _ => {}

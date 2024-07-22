@@ -1,6 +1,5 @@
 use classicube_sys::{InputButtons, MsgType};
 
-use super::InputDeviceSend;
 use crate::modules::event_handler::{OutgoingEvent, OUTGOING_SENDER};
 
 pub fn new_outgoing_event(event: OutgoingEvent) {
@@ -18,9 +17,9 @@ pub fn chat_add<S: Into<String>>(text: S) {
     new_outgoing_event(OutgoingEvent::ChatAdd(text.into()));
 }
 
-pub fn simulate_key(key: InputButtons, device: InputDeviceSend) {
-    new_outgoing_event(OutgoingEvent::InputDown(key, false, device));
-    new_outgoing_event(OutgoingEvent::InputUp(key, false, device));
+pub fn simulate_key(key: InputButtons) {
+    new_outgoing_event(OutgoingEvent::InputDown(key, false));
+    new_outgoing_event(OutgoingEvent::InputUp(key, false));
 }
 
 pub fn simulate_char(chr: char) {

@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::{
     modules::{
-        event_handler::{simulate_char, simulate_key, InputDeviceSend},
+        event_handler::{simulate_char, simulate_key},
         option::OptionModule,
         FutureShared, SyncShared,
     },
@@ -166,12 +166,12 @@ impl Chat {
         self.text.iter().collect()
     }
 
-    pub fn set_text<T: Into<String>>(&mut self, text: T, device: InputDeviceSend) {
+    pub fn set_text<T: Into<String>>(&mut self, text: T) {
         let text = text.into();
 
-        simulate_key(InputButtons_CCKEY_END, device);
+        simulate_key(InputButtons_CCKEY_END);
         for _ in 0..192 {
-            simulate_key(InputButtons_CCKEY_BACKSPACE, device);
+            simulate_key(InputButtons_CCKEY_BACKSPACE);
         }
 
         for chr in text.chars() {
@@ -194,7 +194,7 @@ impl Chat {
 
     #[allow(clippy::cognitive_complexity)]
     #[allow(clippy::too_many_lines)]
-    async fn handle_key(&mut self, key: InputButtons, device: InputDeviceSend) {
+    async fn handle_key(&mut self, key: InputButtons) {
         if key == InputButtons_CCKEY_LEFT {
             if self.is_ctrl_held() {
                 let mut found_non_space = false;
@@ -351,19 +351,14 @@ impl Chat {
 
                 let (_pos, sentence) = &hints[show_pos];
                 let sentence = sentence.to_string();
-                self.set_text(sentence, device);
+                self.set_text(sentence);
             }
 
             self.render_hints();
         }
     }
 
-    pub async fn handle_key_down(
-        &mut self,
-        key: InputButtons,
-        repeating: bool,
-        device: InputDeviceSend,
-    ) {
+    pub async fn handle_key_down(&mut self, key: InputButtons, repeating: bool) {
         if !repeating {
             if !self.open && (key == self.open_chat_key || key == InputButtons_CCKEY_SLASH) {
                 self.open = true;
@@ -411,7 +406,7 @@ impl Chat {
         } // if !repeating
 
         if self.open {
-            self.handle_key(key, device).await;
+            self.handle_key(key).await;
         }
     }
 
@@ -449,7 +444,7 @@ impl Chat {
                 .unwrap_or(false)
     }
 
-    pub async fn handle_key_up(&mut self, key: InputButtons) {
+    pub async fn handle_key_up(&mut self, key: InputButtons, _repeating: bool) {
         self.handle_held_keys(key, false);
     }
 
