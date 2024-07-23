@@ -3,7 +3,7 @@ mod event_listener;
 mod random;
 mod send_entity;
 
-use std::{fmt::Display, fs, path::Path};
+use std::{fmt::Display, fs, path::Path, pin::Pin};
 
 use anyhow::{bail, Result};
 use chatsounds::Chatsounds;
@@ -98,7 +98,7 @@ impl ChatsoundsModule {
             MsgPack(chatsounds::GitHubMsgpackEntries),
         }
 
-        let stream: std::pin::Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(
+        let stream: Pin<Box<dyn Stream<Item = _> + Send>> = Box::pin(
             futures::stream::iter(SOURCES)
                 .map(|source| match source {
                     Source::Api(repo) => chatsounds
