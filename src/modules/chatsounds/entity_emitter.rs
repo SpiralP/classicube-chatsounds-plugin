@@ -1,6 +1,6 @@
 use std::sync::{Arc, Weak};
 
-use chatsounds::SpatialSink;
+use chatsounds::rodio::SpatialSink;
 use classicube_helpers::entities::{Entities, ENTITY_SELF_ID};
 use classicube_sys::Vec3;
 
