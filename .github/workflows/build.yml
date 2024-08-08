@@ -67,7 +67,7 @@ jobs:
           path: classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
 
       - name: VirusTotal Scan
-        uses: crazy-max/ghaction-virustotal@v2
+        uses: crazy-max/ghaction-virustotal@v4
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         id: virustotal
         with:
@@ -81,7 +81,7 @@ jobs:
           node .github\format-release.js '${{ steps.virustotal.outputs.analysis }}' > release_body_text.txt
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -143,7 +143,7 @@ jobs:
           path: classicube_chatsounds_linux_${{ matrix.config.arch }}.so
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,7 +201,7 @@ jobs:
           path: classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           files: target/release/classicube_chatsounds_macos_amd64.dylib
@@ -209,7 +209,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
