@@ -1,7 +1,7 @@
 mod outgoing_events;
 mod types;
 
-use std::{os::raw::c_int, ptr};
+use std::{cell::Cell, os::raw::c_int};
 
 use classicube_helpers::{
     events::{
@@ -11,7 +11,7 @@ use classicube_helpers::{
     tick::TickEventHandler,
 };
 use classicube_sys::{
-    Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputEvents, OwnedString,
+    Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents, OwnedString,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -20,6 +20,10 @@ use parking_lot::Mutex;
 
 pub use self::types::*;
 use crate::modules::Module;
+
+thread_local!(
+    static DEVICE: Cell<Option<*mut InputDevice>> = Default::default();
+);
 
 lazy_static! {
     pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
@@ -37,9 +41,9 @@ pub struct EventHandlerModule {
     outgoing_event_sender: Option<Sender<OutgoingEvent>>,
     outgoing_event_receiver: Receiver<OutgoingEvent>,
     chat_received: ChatReceivedEventHandler,
-    input_down: input::DownEventHandler,
+    input_down: input::Down2EventHandler,
     input_press: input::PressEventHandler,
-    input_up: input::UpEventHandler,
+    input_up: input::Up2EventHandler,
     tick_callback: TickEventHandler,
 }
 
@@ -53,9 +57,9 @@ impl EventHandlerModule {
             outgoing_event_sender: Some(outgoing_event_sender),
             outgoing_event_receiver,
             chat_received: ChatReceivedEventHandler::new(),
-            input_down: input::DownEventHandler::new(),
+            input_down: input::Down2EventHandler::new(),
             input_press: input::PressEventHandler::new(),
-            input_up: input::UpEventHandler::new(),
+            input_up: input::Up2EventHandler::new(),
             tick_callback: TickEventHandler::new(),
         }
     }
@@ -106,23 +110,31 @@ impl EventHandlerModule {
                 Event_RaiseInt(&mut InputEvents.Press, c_int::from(chr as u8));
             },
 
-            OutgoingEvent::InputDown(key, repeating) => unsafe {
-                Event_RaiseInput(
-                    &mut InputEvents.Down,
-                    key as _,
-                    u8::from(repeating),
-                    ptr::null_mut(),
-                );
-            },
+            OutgoingEvent::InputDown(key, repeating) => {
+                if let Some(device) = DEVICE.get() {
+                    unsafe {
+                        Event_RaiseInput(
+                            &mut InputEvents.Down2,
+                            key as _,
+                            u8::from(repeating),
+                            device,
+                        );
+                    }
+                }
+            }
 
-            OutgoingEvent::InputUp(key, repeating) => unsafe {
-                Event_RaiseInput(
-                    &mut InputEvents.Up,
-                    key as _,
-                    u8::from(repeating),
-                    ptr::null_mut(),
-                );
-            },
+            OutgoingEvent::InputUp(key, repeating) => {
+                if let Some(device) = DEVICE.get() {
+                    unsafe {
+                        Event_RaiseInput(
+                            &mut InputEvents.Up2,
+                            key as _,
+                            u8::from(repeating),
+                            device,
+                        );
+                    }
+                }
+            }
         }
     }
 }
@@ -157,17 +169,25 @@ impl Module for EventHandlerModule {
             },
         );
 
-        self.input_down
-            .on(move |input::DownEvent { key, repeating, .. }| {
+        self.input_down.on(
+            move |input::Down2Event {
+                      key,
+                      repeating,
+                      device,
+                  }| {
                 let module = unsafe { &mut *ptr };
 
                 if module.simulating {
                     return;
                 }
 
+                if DEVICE.get().is_none() && !device.is_null() {
+                    DEVICE.set(Some(*device));
+                }
                 module.handle_incoming_event(IncomingEvent::InputDown(*key, *repeating));
                 module.handle_outgoing_events();
-            });
+            },
+        );
 
         self.input_press.on(move |input::PressEvent { key }| {
             let module = unsafe { &mut *ptr };
@@ -181,7 +201,7 @@ impl Module for EventHandlerModule {
         });
 
         self.input_up
-            .on(move |input::UpEvent { key, repeating, .. }| {
+            .on(move |input::Up2Event { key, repeating, .. }| {
                 let module = unsafe { &mut *ptr };
 
                 if module.simulating {
