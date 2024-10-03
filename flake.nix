@@ -29,9 +29,8 @@
               lockFile = ./Cargo.lock;
               outputHashes = {
                 "async-dispatcher-0.1.0" = "sha256-rqpQ176/PnI9vvPrwQvK3GJbryjb3hHkb+o1RyCZ3Vg=";
-                "chatsounds-0.2.0" = "sha256-oDc3GLo12KfaUsJeL7CvNrcyfEs2S6s0Uo4SmOKQdCs=";
-                "classicube-helpers-2.0.0+classicube.1.3.6" = "sha256-u+FWpJDXgvp1Tqn/byTCd1PiSdfiiWIdAOzYvRjcfuM=";
-                "classicube-sys-3.0.4+classicube.1.3.6" = "sha256-js5WXM6qmN5UwrXb0PkN//CV7/tfWA5ZWOBrIRJUjVI=";
+                "chatsounds-0.2.0" = "sha256-FF+65wGkebktnp8aCJhSoreYWpo3TgcEIxHv4BgqsZI=";
+                "classicube-helpers-3.0.0+classicube.1.3.7" = "sha256-3hWKS6NmAH0x+SOi/nBKJLIQi/3ilG7WSRrPvF++wGE=";
                 "color-backtrace-0.3.0" = "sha256-wVf6EEmD/PqHGJtVUXBg5y2kXPXxGtQTU52WurrFv+M=";
               };
             };
