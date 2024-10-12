@@ -29,7 +29,7 @@
               lockFile = ./Cargo.lock;
               outputHashes = {
                 "async-dispatcher-0.1.0" = "sha256-rqpQ176/PnI9vvPrwQvK3GJbryjb3hHkb+o1RyCZ3Vg=";
-                "chatsounds-0.2.0" = "sha256-FF+65wGkebktnp8aCJhSoreYWpo3TgcEIxHv4BgqsZI=";
+                "chatsounds-0.2.0" = "sha256-eAo0AOiW/26yA3H9awjpJ5EPslY+9z8WJ5JFcFtNMTI=";
                 "classicube-helpers-3.0.0+classicube.1.3.7" = "sha256-3hWKS6NmAH0x+SOi/nBKJLIQi/3ilG7WSRrPvF++wGE=";
                 "color-backtrace-0.3.0" = "sha256-wVf6EEmD/PqHGJtVUXBg5y2kXPXxGtQTU52WurrFv+M=";
               };
