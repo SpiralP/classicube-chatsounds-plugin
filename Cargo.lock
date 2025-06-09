@@ -253,7 +253,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chatsounds"
 version = "0.2.0"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git#90605ab324932314b4af21bb2f3d9972ceb3e112"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#0a8158d87d7d7452bf1ec207e1975895d132af40"
 dependencies = [
  "bytes",
  "futures",
@@ -306,7 +306,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "3.0.0+classicube.1.3.7"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git#0624402a63305dfad0a6ec6624e10e5db3cfd861"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#ec8cffca5adcef3f12fe057fa001081530be0a58"
 dependencies = [
  "async-dispatcher",
  "classicube-sys",
@@ -349,7 +349,7 @@ dependencies = [
 [[package]]
 name = "color-backtrace"
 version = "0.3.0"
-source = "git+https://github.com/SpiralP/color-backtrace-msgbox.git#44fed268cc4f39e551f572e42ad865a3df6a4633"
+source = "git+https://github.com/SpiralP/color-backtrace-msgbox.git?branch=master#44fed268cc4f39e551f572e42ad865a3df6a4633"
 dependencies = [
  "backtrace",
  "msgbox",

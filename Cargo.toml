@@ -10,10 +10,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
-chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git" }
-classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git" }
+chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git", branch = "main" }
+classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git", branch = "main" }
 classicube-sys = "4"
-color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git" }
+color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git", branch = "master" }
 crossbeam-channel = "0.5"
 futures = "0.3"
 lazy_static = "1"
