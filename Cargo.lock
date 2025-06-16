@@ -66,7 +66,7 @@ checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 [[package]]
 name = "async-dispatcher"
 version = "0.1.0"
-source = "git+https://github.com/SpiralP/rust-async-dispatcher.git#f0e86ff7a59f895eda4bd12cabf238ebe601a7e4"
+source = "git+https://github.com/SpiralP/rust-async-dispatcher.git?branch=main#f0e86ff7a59f895eda4bd12cabf238ebe601a7e4"
 dependencies = [
  "futures",
 ]
@@ -253,7 +253,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chatsounds"
 version = "0.2.0"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#0a8158d87d7d7452bf1ec207e1975895d132af40"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#e49a23896259fcf8e948b60e05139ba5f6bff52a"
 dependencies = [
  "bytes",
  "futures",
@@ -306,7 +306,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "3.0.0+classicube.1.3.7"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#ec8cffca5adcef3f12fe057fa001081530be0a58"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#2d1c0edaea4ef21562f7386007252b370683450c"
 dependencies = [
  "async-dispatcher",
  "classicube-sys",
