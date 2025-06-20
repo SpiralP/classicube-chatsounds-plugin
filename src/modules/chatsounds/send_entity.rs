@@ -3,6 +3,7 @@ use std::rc::Rc;
 use classicube_helpers::entities::Entity;
 use classicube_sys::Vec3;
 
+#[allow(dead_code)]
 /// so that we capture and send entity data through futures/threads
 pub struct SendEntity {
     pub id: u8,

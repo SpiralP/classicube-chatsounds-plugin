@@ -107,13 +107,14 @@ impl EventHandlerModule {
             }
 
             OutgoingEvent::InputPress(chr) => unsafe {
-                Event_RaiseInt(&mut InputEvents.Press, c_int::from(chr as u8));
+                Event_RaiseInt(&raw mut InputEvents.Press, c_int::from(chr as u8));
             },
 
             OutgoingEvent::InputDown(key, repeating) => {
                 if let Some(device) = DEVICE.get() {
                     unsafe {
                         Event_RaiseInput(
+                            #[allow(static_mut_refs)]
                             &mut InputEvents.Down2,
                             key as _,
                             u8::from(repeating),
@@ -127,6 +128,7 @@ impl EventHandlerModule {
                 if let Some(device) = DEVICE.get() {
                     unsafe {
                         Event_RaiseInput(
+                            #[allow(static_mut_refs)]
                             &mut InputEvents.Up2,
                             key as _,
                             u8::from(repeating),

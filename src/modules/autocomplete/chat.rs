@@ -119,7 +119,7 @@ impl Chat {
             let (pos, hint) = &hints[self.hint_pos];
             let pos = *pos;
 
-            let test_pos = hint.find(&input).unwrap_or(usize::max_value());
+            let test_pos = hint.find(&input).unwrap_or(usize::MAX);
             if pos != test_pos {
                 print(format!("panic! {} != {}", pos, test_pos));
                 return;

@@ -22,7 +22,7 @@ impl Module for AppNameModule {
         self.app_name = Some(append_app_name);
 
         unsafe {
-            String_AppendConst(&mut Server.AppName, c_str);
+            String_AppendConst(&raw mut Server.AppName, c_str);
         }
     }
 
