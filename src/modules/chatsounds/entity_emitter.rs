@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    f32::consts::{FRAC_PI_4, SQRT_2},
+    sync::{Arc, Weak},
+};
 
 use chatsounds::ChannelVolumeSink;
 use classicube_helpers::entities::Entities;
@@ -66,9 +69,17 @@ impl EntityEmitter {
         let pan = (ent_pos - my_pos).normalize().dot(&left);
         let pan = pan * 0.8; // -1 full left, 1 full right
 
+        let angle = (pan + 1.0) * FRAC_PI_4;
+
+        let gain_l = angle.cos();
+        let gain_r = angle.sin();
+
+        let output_l = gain_l * SQRT_2;
+        let output_r = gain_r * SQRT_2;
+
         vec![
-            percent * (1.0 - pan).clamp(0.0, 1.0), // left channel volume
-            percent * (1.0 + pan).clamp(0.0, 1.0), // right channel volume
+            percent * output_l, // left channel volume
+            percent * output_r, // right channel volume
         ]
     }
 }
@@ -87,10 +98,10 @@ fn test_coords_to_sink_channel_volumes() {
     };
 
     for (self_rot_yaw, result) in [
-        (0.0f32, [0.96666664, 0.96666664]), // Facing -z
-        (90.0, [0.96666664, 0.19333331]),   // Facing +x
-        (180.0, [0.9666666, 0.96666664]),   // Facing +z
-        (270.0, [0.19333331, 0.96666664]),  // Facing -x
+        (0.0f32, [0.9666666, 0.9666666]),  // Facing -z
+        (90.0, [1.3502421, 0.21385734]),   // Facing +x
+        (180.0, [0.96666646, 0.96666676]), // Facing +z
+        (270.0, [0.21385737, 1.3502421]),  // Facing -x
     ] {
         let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
             emitter_pos,
@@ -116,10 +127,10 @@ fn test_coords_to_sink_channel_volumes() {
     };
 
     for (self_rot_yaw, result) in [
-        (0.0f32, [0.6666666, 0.6666666]), // Facing -z
-        (90.0, [0.6666666, 0.13333331]),  // Facing +x
-        (180.0, [0.66666657, 0.6666666]), // Facing +z
-        (270.0, [0.13333331, 0.6666666]), // Facing -x
+        (0.0f32, [0.66666657, 0.66666657]), // Facing -z
+        (90.0, [0.93120146, 0.1474878]),    // Facing +x
+        (180.0, [0.6666665, 0.6666667]),    // Facing +z
+        (270.0, [0.14748783, 0.93120146]),  // Facing -x
     ] {
         let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
             emitter_pos,
