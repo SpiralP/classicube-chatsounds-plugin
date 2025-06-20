@@ -17,6 +17,7 @@ color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git
 crossbeam-channel = "=0.5.15"
 futures = "=0.3.31"
 lazy_static = "=1.5.0"
+ncollide3d = "=0.33.0"
 parking_lot = "=0.12.4"
 rand = "=0.9.1"
 rand_chacha = "=0.9.0"

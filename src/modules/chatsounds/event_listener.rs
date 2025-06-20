@@ -8,7 +8,10 @@ use tracing::debug;
 
 use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
-    helpers::{is_continuation_message, is_global_cs_message, is_global_cspos_message},
+    helpers::{
+        get_self_position_and_yaw, is_continuation_message, is_global_cs_message,
+        is_global_cspos_message,
+    },
     modules::{
         chatsounds::random::{get_rng, GLOBAL_NAME},
         event_handler::{IncomingEvent, IncomingEventListener},
@@ -107,16 +110,13 @@ impl ChatsoundsEventListener {
             return;
         }
 
-        let self_entity = if let Some(self_entity) = self
-            .entities
-            .borrow_mut()
-            .get(ENTITY_SELF_ID)
-            .and_then(|e| e.upgrade())
-        {
-            self_entity
-        } else {
-            return;
-        };
+        let (self_pos, self_rot_yaw) =
+            if let Some((self_pos, self_rot_yaw)) = get_self_position_and_yaw() {
+                (self_pos, self_rot_yaw)
+            } else {
+                return;
+            };
+
         let (id, real_name, said_text, static_pos) = if let Some(said_text) =
             is_global_cs_message(&full_msg)
         {
@@ -146,9 +146,6 @@ impl ChatsoundsEventListener {
             let colorless_text: String = remove_color(said_text).trim().to_string();
 
             let send_entity = SendEntity::from(&entity);
-
-            let self_pos = self_entity.get_position();
-            let self_rot_yaw = self_entity.get_rot()[1];
 
             let chatsounds = self.chatsounds.clone();
             let entity_emitters = self.entity_emitters.clone();
@@ -202,31 +199,21 @@ pub async fn play_chatsound(
         // if self entity, play 2d sound
         let _ignore_error = chatsounds.play(&sentence, get_rng(&real_name)).await;
     } else {
-        let (emitter_pos, left_ear_pos, right_ear_pos) = EntityEmitter::coords_to_sink_positions(
+        let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
             static_pos.unwrap_or(entity.pos),
             self_pos,
             self_rot_yaw,
         );
 
         if let Ok(sink) = chatsounds
-            .play_spatial(
-                &sentence,
-                get_rng(&real_name),
-                emitter_pos,
-                left_ear_pos,
-                right_ear_pos,
-            )
+            .play_channel_volume(&sentence, get_rng(&real_name), channel_volumes)
             .await
         {
             // don't print other's errors
-            entity_emitters.lock().unwrap().push(EntityEmitter::new(
-                if static_pos.is_some() {
-                    None
-                } else {
-                    Some(entity.id)
-                },
-                &sink,
-            ));
+            entity_emitters
+                .lock()
+                .unwrap()
+                .push(EntityEmitter::new(entity.id, &sink, static_pos));
         }
     }
 }
@@ -245,7 +232,7 @@ impl IncomingEventListener for ChatsoundsEventListener {
 
                 let mut to_remove = Vec::with_capacity(entity_emitters.len());
                 for (i, emitter) in entity_emitters.iter_mut().enumerate() {
-                    if !emitter.update(&mut self.entities) {
+                    if emitter.update(&mut self.entities).is_none() {
                         to_remove.push(i);
                     }
                 }

@@ -1,133 +1,164 @@
 use std::sync::{Arc, Weak};
 
-use chatsounds::rodio::SpatialSink;
-use classicube_helpers::entities::{Entities, ENTITY_SELF_ID};
+use chatsounds::ChannelVolumeSink;
+use classicube_helpers::entities::Entities;
 use classicube_sys::Vec3;
+use ncollide3d::na::Vector3;
 
-use crate::modules::SyncShared;
+use crate::{
+    helpers::{get_self_position_and_yaw, vec3_to_vector3},
+    modules::SyncShared,
+};
 
 pub struct EntityEmitter {
-    entity_id: Option<u8>,
-    sink: Weak<SpatialSink>,
+    entity_id: u8,
+    sink: Weak<ChannelVolumeSink>,
+    static_pos: Option<Vec3>,
 }
 
 impl EntityEmitter {
-    pub fn new(entity_id: Option<u8>, sink: &Arc<SpatialSink>) -> Self {
+    pub fn new(entity_id: u8, sink: &Arc<ChannelVolumeSink>, static_pos: Option<Vec3>) -> Self {
         Self {
             entity_id,
             sink: Arc::downgrade(sink),
+            static_pos,
         }
     }
 
-    /// returns true if still alive
-    pub fn update(&mut self, entities: &mut SyncShared<Entities>) -> bool {
-        let entity_id = if let Some(entity_id) = self.entity_id {
-            entity_id
-        } else {
-            return true;
-        };
+    /// returns None to remove the emitter
+    pub fn update(&mut self, entities: &mut SyncShared<Entities>) -> Option<()> {
+        let emitter_pos = self.static_pos.or_else(|| {
+            let entity = entities.borrow_mut().get(self.entity_id)?;
+            let entity = entity.upgrade()?;
+            Some(entity.get_position())
+        })?;
 
-        let (emitter_pos, self_stuff) = {
-            let entities = entities.borrow_mut();
+        let (self_pos, self_rot_yaw) = get_self_position_and_yaw()?;
+        let channel_volumes =
+            EntityEmitter::coords_to_sink_channel_volumes(emitter_pos, self_pos, self_rot_yaw);
 
-            (
-                if let Some(entity) = entities.get(entity_id) {
-                    entity.upgrade().map(|entity| entity.get_position())
-                } else {
-                    None
-                },
-                if let Some(entity) = entities.get(ENTITY_SELF_ID) {
-                    entity
-                        .upgrade()
-                        .map(|entity| (entity.get_position(), entity.get_rot()[1]))
-                } else {
-                    None
-                },
-            )
-        };
+        self.sink.upgrade()?.set_channel_volumes(channel_volumes);
 
-        if let Some(emitter_pos) = emitter_pos {
-            if let Some((self_pos, self_rot)) = self_stuff {
-                let (emitter_pos, left_ear_pos, right_ear_pos) =
-                    EntityEmitter::coords_to_sink_positions(emitter_pos, self_pos, self_rot);
-
-                return self.update_sink(emitter_pos, left_ear_pos, right_ear_pos);
-            }
-        }
-
-        true
+        Some(())
     }
 
-    pub fn coords_to_sink_positions(
+    pub fn coords_to_sink_channel_volumes(
         emitter_pos: Vec3,
-        self_pos: Vec3,
+        position: Vec3,
         self_rot_yaw: f32,
-    ) -> ([f32; 3], [f32; 3], [f32; 3]) {
-        use std::f32::consts::PI;
+    ) -> Vec<f32> {
+        const MAX_DISTANCE: f32 = 30.0;
 
-        let (left_sin, left_cos) = {
-            let ratio = self_rot_yaw / 360.0;
-            let rot = ratio * (2.0 * PI) - PI;
-            rot.sin_cos()
-        };
+        let my_pos = vec3_to_vector3(&position);
+        let my_forward = vec3_to_vector3(&Vec3::get_dir_vector(self_rot_yaw, 0.0));
 
-        let (right_sin, right_cos) = {
-            let ratio = self_rot_yaw / 360.0;
-            let rot = ratio * (2.0 * PI);
-            rot.sin_cos()
-        };
+        let ent_pos = vec3_to_vector3(&emitter_pos);
 
-        const HEAD_SIZE: f32 = 0.2;
+        let diff = my_pos - ent_pos;
+        let percent = diff.magnitude() / MAX_DISTANCE;
+        let percent = (1.0 - percent).clamp(0.0, 1.0);
 
-        // z is negative going forward
+        let up = Vector3::y();
 
-        // print(format!(
-        //   "{:?} {:?}",
-        //   &[left_cos, left_sin],
-        //   &[right_cos, right_sin]
-        // ));
+        let left = Vector3::cross(&my_forward, &up);
+        let left = left.normalize();
 
-        let mut left_ear_pos = self_pos;
-        left_ear_pos.x += HEAD_SIZE * left_cos; // x
-        left_ear_pos.z += HEAD_SIZE * left_sin; // z
+        let pan = (ent_pos - my_pos).normalize().dot(&left);
+        let pan = pan * 0.8; // -1 full left, 1 full right
 
-        let mut right_ear_pos = self_pos;
-        right_ear_pos.x += HEAD_SIZE * right_cos; // x
-        right_ear_pos.z += HEAD_SIZE * right_sin; // z
-
-        (
-            [emitter_pos.x, emitter_pos.y, emitter_pos.z],
-            [left_ear_pos.x, left_ear_pos.y, left_ear_pos.z],
-            [right_ear_pos.x, right_ear_pos.y, right_ear_pos.z],
-        )
-    }
-
-    pub fn update_sink(
-        &self,
-        emitter_pos: [f32; 3],
-        left_ear_pos: [f32; 3],
-        right_ear_pos: [f32; 3],
-    ) -> bool {
-        if let Some(sink) = self.sink.upgrade() {
-            // const DIST_FIX: f32 = 0.3;
-
-            // print(format!("{:?}", emitter_pos));
-            // print(format!("{:?} {:?}", left_ear_pos, right_ear_pos));
-
-            // TODO LOL CHANGING LEFT TO RIGHT RIGHT TO LEFT
-            sink.set_left_ear_position(mul_3(right_ear_pos, 0.2));
-
-            sink.set_right_ear_position(mul_3(left_ear_pos, 0.2));
-
-            sink.set_emitter_position(mul_3(emitter_pos, 0.2));
-
-            true
-        } else {
-            false
-        }
+        vec![
+            percent * (1.0 - pan).clamp(0.0, 1.0), // left channel volume
+            percent * (1.0 + pan).clamp(0.0, 1.0), // right channel volume
+        ]
     }
 }
 
-fn mul_3(a: [f32; 3], n: f32) -> [f32; 3] {
-    [a[0] * n, a[1] * n, a[2] * n]
+#[test]
+fn test_coords_to_sink_channel_volumes() {
+    let emitter_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    let self_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+    };
+
+    for (self_rot_yaw, result) in [
+        (0.0f32, [0.96666664, 0.96666664]), // Facing -z
+        (90.0, [0.96666664, 0.19333331]),   // Facing +x
+        (180.0, [0.9666666, 0.96666664]),   // Facing +z
+        (270.0, [0.19333331, 0.96666664]),  // Facing -x
+    ] {
+        let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
+            emitter_pos,
+            self_pos,
+            self_rot_yaw.to_radians(),
+        );
+        assert_eq!(
+            channel_volumes, result,
+            "Failed for self_rot_yaw: {}",
+            self_rot_yaw
+        );
+    }
+
+    let emitter_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    let self_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 10.0,
+    };
+
+    for (self_rot_yaw, result) in [
+        (0.0f32, [0.6666666, 0.6666666]), // Facing -z
+        (90.0, [0.6666666, 0.13333331]),  // Facing +x
+        (180.0, [0.66666657, 0.6666666]), // Facing +z
+        (270.0, [0.13333331, 0.6666666]), // Facing -x
+    ] {
+        let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
+            emitter_pos,
+            self_pos,
+            self_rot_yaw.to_radians(),
+        );
+        assert_eq!(
+            channel_volumes, result,
+            "Failed for self_rot_yaw: {}",
+            self_rot_yaw
+        );
+    }
+
+    let emitter_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    let self_pos = Vec3 {
+        x: 0.0,
+        y: 0.0,
+        z: 30.0,
+    };
+
+    for (self_rot_yaw, result) in [
+        (0.0f32, [0.0, 0.0]), // Facing -z
+        (90.0, [0.0, 0.0]),   // Facing +x
+        (180.0, [0.0, 0.0]),  // Facing +z
+        (270.0, [0.0, 0.0]),  // Facing -x
+    ] {
+        let channel_volumes = EntityEmitter::coords_to_sink_channel_volumes(
+            emitter_pos,
+            self_pos,
+            self_rot_yaw.to_radians(),
+        );
+        assert_eq!(
+            channel_volumes, result,
+            "Failed for self_rot_yaw: {}",
+            self_rot_yaw
+        );
+    }
 }

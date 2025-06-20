@@ -1,4 +1,6 @@
-use classicube_sys::Vec3;
+use classicube_sys::{Camera, Vec3};
+use ncollide3d::na::Vector3;
+use tracing::warn;
 
 pub fn remove_color_left(mut text: &str) -> &str {
     while text.len() >= 2 && text.get(0..1).map(|c| c == "&").unwrap_or(false) {
@@ -45,6 +47,21 @@ pub fn is_global_cspos_message(message: &str) -> Option<(&str, Vec3)> {
     } else {
         None
     }
+}
+
+pub fn vec3_to_vector3(v: &Vec3) -> Vector3<f32> {
+    Vector3::new(v.x, v.y, v.z)
+}
+
+pub fn get_self_position_and_yaw() -> Option<(Vec3, f32)> {
+    if unsafe { Camera.Active.is_null() } {
+        warn!("Camera.Active is null!");
+        return None;
+    }
+    let camera = unsafe { &*Camera.Active };
+    let position = camera.GetPosition.map(|f| unsafe { f(0.0) })?;
+    let orientation = camera.GetOrientation.map(|f| unsafe { f() })?;
+    Some((position, orientation.x))
 }
 
 #[test]
