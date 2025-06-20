@@ -1,7 +1,11 @@
 mod outgoing_events;
 mod types;
 
-use std::{cell::Cell, os::raw::c_int};
+use std::{
+    cell::{Cell, RefCell},
+    os::raw::c_int,
+    slice,
+};
 
 use classicube_helpers::{
     events::{
@@ -11,18 +15,32 @@ use classicube_helpers::{
     tick::TickEventHandler,
 };
 use classicube_sys::{
-    Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents, OwnedString,
+    Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents,
+    MsgType_MSG_TYPE_NORMAL, Net_Handler, OwnedString, Protocol, Server, UNSAFE_GetString,
+    OPCODE__OPCODE_MESSAGE,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 pub use outgoing_events::*;
 use parking_lot::Mutex;
+use tracing::debug;
 
 pub use self::types::*;
-use crate::modules::Module;
+use crate::{
+    helpers::{is_global_cs_message, is_global_cspos_message},
+    modules::Module,
+};
 
 thread_local!(
     static DEVICE: Cell<Option<*mut InputDevice>> = Default::default();
+);
+
+thread_local!(
+    static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = const { Cell::new(None) };
+);
+
+thread_local!(
+    static OLD_MESSAGE_HANDLER: RefCell<Net_Handler> = const { RefCell::new(None) };
 );
 
 lazy_static! {
@@ -141,6 +159,45 @@ impl EventHandlerModule {
     }
 }
 
+extern "C" fn message_handler(data: *mut u8) {
+    {
+        use classicube_sys::MsgType;
+
+        let data = unsafe { slice::from_raw_parts(data, 65) };
+        let message_type = data[0] as MsgType;
+        let text = unsafe { UNSAFE_GetString(&data[1..]) }.to_string();
+
+        if message_type == MsgType_MSG_TYPE_NORMAL {
+            let ptr = EVENT_HANDLER_MODULE.get().unwrap();
+            let module = unsafe { &mut *ptr };
+
+            if !module.simulating {
+                module.handle_incoming_event(IncomingEvent::ChatReceived(
+                    text.to_string(),
+                    message_type,
+                ));
+                module.handle_outgoing_events();
+            }
+
+            if let Some(text) = is_global_cs_message(&text) {
+                debug!(?text, "hide global cs message");
+                return;
+            } else if let Some((text, pos)) = is_global_cspos_message(&text) {
+                debug!(?text, ?pos, "hide global cspos message");
+                return;
+            }
+        }
+    }
+
+    OLD_MESSAGE_HANDLER.with(|cell| {
+        let option = &*cell.borrow();
+        let f = option.unwrap();
+        unsafe {
+            f(data);
+        }
+    });
+}
+
 impl Module for EventHandlerModule {
     fn load(&mut self) {
         {
@@ -152,24 +209,40 @@ impl Module for EventHandlerModule {
         // or describe why we can use pointers here
         let ptr: *mut EventHandlerModule = self;
 
-        self.chat_received.on(
-            move |ChatReceivedEvent {
-                      message,
-                      message_type,
-                  }| {
-                let module = unsafe { &mut *ptr };
+        EVENT_HANDLER_MODULE.set(Some(ptr));
 
-                if module.simulating {
-                    return;
+        if unsafe { Server.IsSinglePlayer } == 0 {
+            {
+                let old_handler = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
+                unsafe {
+                    Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
                 }
 
-                module.handle_incoming_event(IncomingEvent::ChatReceived(
-                    message.to_string(),
-                    *message_type,
-                ));
-                module.handle_outgoing_events();
-            },
-        );
+                OLD_MESSAGE_HANDLER.with(|cell| {
+                    let option = &mut *cell.borrow_mut();
+                    *option = old_handler;
+                });
+            }
+        } else {
+            self.chat_received.on(
+                move |ChatReceivedEvent {
+                          message,
+                          message_type,
+                      }| {
+                    let module = unsafe { &mut *ptr };
+
+                    if module.simulating {
+                        return;
+                    }
+
+                    module.handle_incoming_event(IncomingEvent::ChatReceived(
+                        message.to_string(),
+                        *message_type,
+                    ));
+                    module.handle_outgoing_events();
+                },
+            );
+        }
 
         self.input_down.on(
             move |input::Down2Event {

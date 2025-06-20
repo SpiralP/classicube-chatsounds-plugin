@@ -7,12 +7,12 @@ use classicube_sys::Vec3;
 use crate::modules::SyncShared;
 
 pub struct EntityEmitter {
-    entity_id: u8,
+    entity_id: Option<u8>,
     sink: Weak<SpatialSink>,
 }
 
 impl EntityEmitter {
-    pub fn new(entity_id: u8, sink: &Arc<SpatialSink>) -> Self {
+    pub fn new(entity_id: Option<u8>, sink: &Arc<SpatialSink>) -> Self {
         Self {
             entity_id,
             sink: Arc::downgrade(sink),
@@ -21,11 +21,17 @@ impl EntityEmitter {
 
     /// returns true if still alive
     pub fn update(&mut self, entities: &mut SyncShared<Entities>) -> bool {
+        let entity_id = if let Some(entity_id) = self.entity_id {
+            entity_id
+        } else {
+            return true;
+        };
+
         let (emitter_pos, self_stuff) = {
             let entities = entities.borrow_mut();
 
             (
-                if let Some(entity) = entities.get(self.entity_id) {
+                if let Some(entity) = entities.get(entity_id) {
                     entity.upgrade().map(|entity| entity.get_position())
                 } else {
                     None

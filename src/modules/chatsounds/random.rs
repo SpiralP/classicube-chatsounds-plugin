@@ -8,6 +8,8 @@ use lazy_static::lazy_static;
 use rand::prelude::*;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 
+pub const GLOBAL_NAME: &str = "Global";
+
 // TODO make this a field on ChatsoundsModule/EventListener
 lazy_static! {
     pub static ref ENTITY_COUNTS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());

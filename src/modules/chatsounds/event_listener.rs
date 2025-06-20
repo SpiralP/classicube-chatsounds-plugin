@@ -7,13 +7,12 @@ use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo}
 
 use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
-    helpers::is_continuation_message,
+    helpers::{is_continuation_message, is_global_cs_message, is_global_cspos_message},
     modules::{
-        chatsounds::random::get_rng,
+        chatsounds::random::{get_rng, GLOBAL_NAME},
         event_handler::{IncomingEvent, IncomingEventListener},
         FutureShared, FuturesModule, SyncShared, ThreadShared,
     },
-    printer::print,
 };
 
 pub struct ChatsoundsEventListener {
@@ -107,44 +106,71 @@ impl ChatsoundsEventListener {
             return;
         }
 
-        if let Some((id, real_name, said_text)) = self.find_player_from_message(full_msg) {
-            random::update_chat_count(&real_name);
+        let self_entity = if let Some(self_entity) = self
+            .entities
+            .borrow_mut()
+            .get(ENTITY_SELF_ID)
+            .and_then(|e| e.upgrade())
+        {
+            self_entity
+        } else {
+            return;
+        };
+        let (id, real_name, said_text, static_pos) = if let Some(said_text) =
+            is_global_cs_message(&full_msg)
+        {
+            (
+                ENTITY_SELF_ID,
+                GLOBAL_NAME.to_string(),
+                said_text.to_string(),
+                None,
+            )
+        } else if let Some((said_text, static_pos)) = is_global_cspos_message(&full_msg) {
+            (
+                ENTITY_SELF_ID,
+                GLOBAL_NAME.to_string(),
+                said_text.to_string(),
+                Some(static_pos),
+            )
+        } else if let Some((id, real_name, said_text)) = self.find_player_from_message(full_msg) {
+            (id, real_name, said_text, None)
+        } else {
+            return;
+        };
 
-            let entities = self.entities.borrow_mut();
-            if let Some(entity) = entities.get(id).and_then(|e| e.upgrade()) {
-                // if entity is in our map
-                if let Some(self_entity) = entities.get(ENTITY_SELF_ID).and_then(|e| e.upgrade()) {
-                    let colorless_text: String = remove_color(said_text).trim().to_string();
+        random::update_chat_count(&real_name);
 
-                    let send_entity = SendEntity::from(&entity);
+        if let Some(entity) = self.entities.borrow_mut().get(id).and_then(|e| e.upgrade()) {
+            // if entity is in our map
+            let colorless_text: String = remove_color(said_text).trim().to_string();
 
-                    let self_pos = self_entity.get_position();
-                    let self_rot_yaw = self_entity.get_rot()[1];
+            let send_entity = SendEntity::from(&entity);
 
-                    let chatsounds = self.chatsounds.clone();
-                    let entity_emitters = self.entity_emitters.clone();
+            let self_pos = self_entity.get_position();
+            let self_rot_yaw = self_entity.get_rot()[1];
 
-                    // it doesn't matter if these are out of order so we just spawn
-                    FuturesModule::spawn_future(async move {
-                        play_chatsound(
-                            colorless_text,
-                            real_name,
-                            send_entity,
-                            self_pos,
-                            self_rot_yaw,
-                            chatsounds,
-                            entity_emitters,
-                        )
-                        .await;
-                    });
-                } else {
-                    print("couldn't entities.get(ENTITY_SELF_ID)");
-                }
-            }
+            let chatsounds = self.chatsounds.clone();
+            let entity_emitters = self.entity_emitters.clone();
+
+            // it doesn't matter if these are out of order so we just spawn
+            FuturesModule::spawn_future(async move {
+                play_chatsound(
+                    colorless_text,
+                    real_name,
+                    send_entity,
+                    self_pos,
+                    self_rot_yaw,
+                    chatsounds,
+                    entity_emitters,
+                    static_pos,
+                )
+                .await;
+            });
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn play_chatsound(
     sentence: String,
     real_name: String,
@@ -153,6 +179,7 @@ pub async fn play_chatsound(
     self_rot_yaw: f32,
     chatsounds: FutureShared<Option<Chatsounds>>,
     entity_emitters: ThreadShared<Vec<EntityEmitter>>,
+    static_pos: Option<Vec3>,
 ) {
     let mut chatsounds = chatsounds.lock().await;
     let chatsounds = chatsounds.as_mut().unwrap();
@@ -168,12 +195,15 @@ pub async fn play_chatsound(
         return;
     }
 
-    if entity.id == ENTITY_SELF_ID {
+    if static_pos.is_none() && entity.id == ENTITY_SELF_ID {
         // if self entity, play 2d sound
         let _ignore_error = chatsounds.play(&sentence, get_rng(&real_name)).await;
     } else {
-        let (emitter_pos, left_ear_pos, right_ear_pos) =
-            EntityEmitter::coords_to_sink_positions(entity.pos, self_pos, self_rot_yaw);
+        let (emitter_pos, left_ear_pos, right_ear_pos) = EntityEmitter::coords_to_sink_positions(
+            static_pos.unwrap_or(entity.pos),
+            self_pos,
+            self_rot_yaw,
+        );
 
         if let Ok(sink) = chatsounds
             .play_spatial(
@@ -186,10 +216,14 @@ pub async fn play_chatsound(
             .await
         {
             // don't print other's errors
-            entity_emitters
-                .lock()
-                .unwrap()
-                .push(EntityEmitter::new(entity.id, &sink));
+            entity_emitters.lock().unwrap().push(EntityEmitter::new(
+                if static_pos.is_some() {
+                    None
+                } else {
+                    Some(entity.id)
+                },
+                &sink,
+            ));
         }
     }
 }
