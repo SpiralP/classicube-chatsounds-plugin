@@ -198,6 +198,18 @@ extern "C" fn message_handler(data: *mut u8) {
     });
 }
 
+pub fn install_message_handler() {
+    let old_handler = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
+    unsafe {
+        Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
+    }
+
+    OLD_MESSAGE_HANDLER.with(|cell| {
+        let option = &mut *cell.borrow_mut();
+        *option = old_handler;
+    });
+}
+
 impl Module for EventHandlerModule {
     fn load(&mut self) {
         {
@@ -212,17 +224,7 @@ impl Module for EventHandlerModule {
         EVENT_HANDLER_MODULE.set(Some(ptr));
 
         if unsafe { Server.IsSinglePlayer } == 0 {
-            {
-                let old_handler = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
-                unsafe {
-                    Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
-                }
-
-                OLD_MESSAGE_HANDLER.with(|cell| {
-                    let option = &mut *cell.borrow_mut();
-                    *option = old_handler;
-                });
-            }
+            install_message_handler();
         } else {
             self.chat_received.on(
                 move |ChatReceivedEvent {
