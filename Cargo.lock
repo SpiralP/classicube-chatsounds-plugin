@@ -94,6 +94,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-arena"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73e8ed45f88ed32e6827a96b62d8fd4086d72defc754c5c6bd08470c1aaf648e"
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -321,6 +327,7 @@ dependencies = [
  "color-backtrace",
  "crossbeam-channel",
  "futures",
+ "kira",
  "lazy_static",
  "ncollide3d",
  "parking_lot",
@@ -873,6 +880,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.30.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50a99dbe56b72736564cfa4b85bf9a33079f16ae8b74983ab06af3b1a3696b11"
+dependencies = [
+ "mint",
+]
+
+[[package]]
 name = "glib"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1298,6 +1314,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "kira"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e7f96b236a2d8b1ecebcd0e4e81462405392699e261f852cf930ea150f15abd"
+dependencies = [
+ "atomic-arena",
+ "glam",
+ "mint",
+ "paste",
+ "rtrb",
+ "send_wrapper",
+ "triple_buffer",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1421,6 +1452,12 @@ checksum = "b8a240ddb74feaf34a79a7add65a741f3167852fba007066dcac1ca548d89c08"
 dependencies = [
  "adler",
 ]
+
+[[package]]
+name = "mint"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e53debba6bda7a793e5f99b8dacf19e626084f525f7829104ba9898f367d85ff"
 
 [[package]]
 name = "mio"
@@ -2089,6 +2126,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtrb"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad8388ea1a9e0ea807e442e8263a699e7edcb320ecbcd21b4fa8ff859acce3ba"
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2219,6 +2262,12 @@ dependencies = [
  "core-foundation-sys 0.8.7",
  "libc",
 ]
+
+[[package]]
+name = "send_wrapper"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "serde"
@@ -2737,6 +2786,15 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "triple_buffer"
+version = "8.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "420466259f9fa5decc654c490b9ab538400e5420df8237f84ecbe20368bcf72b"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
