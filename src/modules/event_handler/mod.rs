@@ -27,7 +27,7 @@ use tracing::debug;
 
 pub use self::types::*;
 use crate::{
-    helpers::{is_global_cs_message, is_global_cspos_message},
+    helpers::{is_global_cs_message, is_global_csent_message, is_global_cspos_message},
     modules::Module,
 };
 
@@ -184,6 +184,9 @@ extern "C" fn message_handler(data: *mut u8) {
                 return;
             } else if let Some((text, pos)) = is_global_cspos_message(&text) {
                 debug!(?text, ?pos, "hide global cspos message");
+                return;
+            } else if let Some((text, id)) = is_global_csent_message(&text) {
+                debug!(?text, ?id, "hide global csent message");
                 return;
             }
         }

@@ -10,7 +10,7 @@ use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
     helpers::{
         get_self_position_and_yaw, is_continuation_message, is_global_cs_message,
-        is_global_cspos_message,
+        is_global_csent_message, is_global_cspos_message,
     },
     modules::{
         chatsounds::random::{get_rng, GLOBAL_NAME},
@@ -132,6 +132,13 @@ impl ChatsoundsEventListener {
                 GLOBAL_NAME.to_string(),
                 said_text.to_string(),
                 Some(static_pos),
+            )
+        } else if let Some((said_text, entity_id)) = is_global_csent_message(&full_msg) {
+            (
+                entity_id,
+                GLOBAL_NAME.to_string(),
+                said_text.to_string(),
+                None,
             )
         } else if let Some((id, real_name, said_text)) = self.find_player_from_message(full_msg) {
             (id, real_name, said_text, None)

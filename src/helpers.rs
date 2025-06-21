@@ -49,6 +49,24 @@ pub fn is_global_cspos_message(message: &str) -> Option<(&str, Vec3)> {
     }
 }
 
+pub fn is_global_csent_message(message: &str) -> Option<(&str, u8)> {
+    let message = remove_color_left(message);
+
+    if let Some(rest) = message.strip_prefix("csent ") {
+        let mut split = rest.splitn(2, ' ');
+        let entity_id = split.next()?.parse::<u8>().ok()?;
+        let message = split.next()?.trim();
+
+        if message.is_empty() {
+            None
+        } else {
+            Some((message, entity_id))
+        }
+    } else {
+        None
+    }
+}
+
 pub fn vec3_to_vector3(v: &Vec3) -> Vector3<f32> {
     Vector3::new(v.x, v.y, v.z)
 }
@@ -104,5 +122,29 @@ fn test_is_global_cspos_message() {
         "csposs 1 2 3 is BAD",
     ] {
         assert_eq!(is_global_cspos_message(bad), None, "{bad:?}");
+    }
+}
+
+#[test]
+fn test_is_global_csent_message() {
+    for good in ["&fcsent 9 is good", "csent 9 is good"] {
+        assert_eq!(
+            is_global_csent_message(good),
+            Some(("is good", 9)),
+            "{good:?}"
+        );
+    }
+
+    for bad in [
+        "csent -1 is bad",
+        "csent 256 is bad",
+        "csent",
+        "&fcsent",
+        "",
+        "&f",
+        "&fcsents 1 2 3 is BAD",
+        "csents 1 2 3 is BAD",
+    ] {
+        assert_eq!(is_global_csent_message(bad), None, "{bad:?}");
     }
 }
