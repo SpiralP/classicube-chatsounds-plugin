@@ -4,7 +4,6 @@ use classicube_helpers::{
     tab_list::{remove_color, TabList},
 };
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
-use tracing::debug;
 
 use super::{entity_emitter::EntityEmitter, random, send_entity::SendEntity};
 use crate::{
@@ -186,8 +185,6 @@ pub async fn play_chatsound(
     entity_emitters: ThreadShared<Vec<EntityEmitter>>,
     static_pos: Option<Vec3>,
 ) {
-    debug!(?sentence, ?real_name, "play_chatsound");
-
     let mut chatsounds = chatsounds.lock().await;
     let chatsounds = chatsounds.as_mut().unwrap();
 
