@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 anyhow = { version = "=1.0.98", features = ["backtrace"] }
 chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git", branch = "main" }
 classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git", branch = "main" }
-classicube-sys = "=4.0.0"
+classicube-sys = "=4.1.2"
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git", branch = "master" }
 crossbeam-channel = "=0.5.15"
 futures = "=0.3.31"
