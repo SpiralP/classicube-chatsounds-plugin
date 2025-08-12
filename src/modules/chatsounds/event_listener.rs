@@ -209,7 +209,7 @@ pub async fn play_chatsound(
             self_rot_yaw,
         );
 
-        if let Ok(sink) = chatsounds
+        if let Ok((sink, _played_chatsounds)) = chatsounds
             .play_channel_volume(&sentence, get_rng(&real_name), channel_volumes)
             .await
         {
