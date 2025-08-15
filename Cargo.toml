@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = { version = "=1.0.98", features = ["backtrace"] }
+anyhow = { version = "=1.0.99", features = ["backtrace"] }
 chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git", branch = "main" }
 classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git", branch = "main" }
 classicube-sys = "=4.1.2"
