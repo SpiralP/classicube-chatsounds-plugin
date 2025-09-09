@@ -1,6 +1,6 @@
 mod entity_emitter;
 mod event_listener;
-mod random;
+pub mod random;
 mod send_entity;
 
 use std::{fmt::Display, fs, path::Path, pin::Pin};

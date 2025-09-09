@@ -30,3 +30,6 @@ tracing-subscriber = { version = "=0.3.20", features = ["env-filter"] }
 [package.metadata.release]
 pre-release-commit-message = "Release {{version}}"
 tag-message = "Release version {{version}}"
+
+# [patch."https://github.com/SpiralP/rust-chatsounds.git"]
+# chatsounds = { path = "../rust-chatsounds" }

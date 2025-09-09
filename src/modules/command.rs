@@ -7,8 +7,8 @@ use tracing::error;
 
 use crate::{
     modules::{
-        chatsounds::VOLUME_NORMAL, EventHandlerModule, FutureShared, FuturesModule, Module,
-        OptionModule, SyncShared,
+        chatsounds::{random::get_rng, VOLUME_NORMAL},
+        EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
     },
     printer::print,
 };
@@ -16,7 +16,9 @@ use crate::{
 // TODO move file to helpers
 
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
+
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
+const PLAY_COMMAND_HELP: &str = "&a/client chatsounds play [text]";
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 
 pub struct CommandModule {
@@ -36,7 +38,7 @@ impl CommandModule {
             "Chatsounds",
             c_command_callback,
             false,
-            vec![VOLUME_COMMAND_HELP, SH_COMMAND_HELP],
+            vec![VOLUME_COMMAND_HELP, PLAY_COMMAND_HELP, SH_COMMAND_HELP],
         );
 
         Self {
@@ -73,6 +75,16 @@ impl CommandModule {
                     .set(VOLUME_SETTING_NAME, format!("{}", volume));
             }
 
+            ["play"] => {
+                print(PLAY_COMMAND_HELP);
+            }
+
+            ["play", words @ ..] => {
+                let text = words.join(" ");
+
+                let _ignore_error = chatsounds.play(&text, get_rng("")).await;
+            }
+
             ["sh"] => {
                 chatsounds.stop_all();
             }
@@ -83,6 +95,7 @@ impl CommandModule {
                     "{} (Currently {})",
                     VOLUME_COMMAND_HELP, current_volume
                 ));
+                print(PLAY_COMMAND_HELP);
                 print(SH_COMMAND_HELP);
             }
         }
