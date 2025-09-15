@@ -267,7 +267,7 @@ checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 [[package]]
 name = "chatsounds"
 version = "3.0.1"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#24a32555c05a05e8fd2c54047b987e6f15df1960"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#c9199db5ad58a68fa8bc608ec7bd94a100fadd3b"
 dependencies = [
  "bytes",
  "futures",
@@ -335,9 +335,9 @@ dependencies = [
 
 [[package]]
 name = "classicube-sys"
-version = "4.2.0+ClassiCube.1.3.7"
+version = "4.3.0+ClassiCube.1.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "887c040b3e7f26b791137402ccf4758bcaeaddced75ac06a181e3af91f9b57ab"
+checksum = "fa859a1502165fedc919443ea0a43c24bb2555f694e01ae8dfa0fdf5108d9b20"
 dependencies = [
  "bindgen",
  "cc",
