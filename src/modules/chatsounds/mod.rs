@@ -192,9 +192,10 @@ impl Module for ChatsoundsModule {
         });
 
         let chatsounds_event_listener = ChatsoundsEventListener::new(
-            self.tab_list.clone(),
-            self.entities.clone(),
             self.chatsounds.clone(),
+            self.entities.clone(),
+            self.option_module.clone(),
+            self.tab_list.clone(),
         );
 
         self.event_handler_module

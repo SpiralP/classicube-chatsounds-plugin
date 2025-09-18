@@ -13,31 +13,37 @@ use crate::{
     },
     modules::{
         chatsounds::random::{get_rng, GLOBAL_NAME},
+        command::MUTE_LOSE_FOCUS_SETTING_NAME,
         event_handler::{IncomingEvent, IncomingEventListener},
-        FutureShared, FuturesModule, SyncShared, ThreadShared,
+        FutureShared, FuturesModule, OptionModule, SyncShared, ThreadShared,
     },
 };
 
 pub struct ChatsoundsEventListener {
-    chatsounds: FutureShared<Option<Chatsounds>>,
-    entity_emitters: ThreadShared<Vec<EntityEmitter>>,
     chat_last: Option<String>,
-    tab_list: SyncShared<TabList>,
+    chatsounds: FutureShared<Option<Chatsounds>>,
     entities: SyncShared<Entities>,
+    entity_emitters: ThreadShared<Vec<EntityEmitter>>,
+    last_volume: FutureShared<Option<f32>>,
+    option_module: SyncShared<OptionModule>,
+    tab_list: SyncShared<TabList>,
 }
 
 impl ChatsoundsEventListener {
     pub fn new(
-        tab_list: SyncShared<TabList>,
-        entities: SyncShared<Entities>,
         chatsounds: FutureShared<Option<Chatsounds>>,
+        entities: SyncShared<Entities>,
+        option_module: SyncShared<OptionModule>,
+        tab_list: SyncShared<TabList>,
     ) -> Self {
         Self {
-            chatsounds,
-            entity_emitters: Default::default(),
             chat_last: None,
-            tab_list,
+            chatsounds,
             entities,
+            entity_emitters: Default::default(),
+            last_volume: FutureShared::default(),
+            option_module,
+            tab_list,
         }
     }
 
@@ -227,6 +233,34 @@ impl IncomingEventListener for ChatsoundsEventListener {
         match event.clone() {
             IncomingEvent::ChatReceived(message, msg_type) => {
                 self.handle_chat_received(message, msg_type)
+            }
+
+            IncomingEvent::FocusChanged(focused) => {
+                let mute_lose_focus = self
+                    .option_module
+                    .borrow_mut()
+                    .get(MUTE_LOSE_FOCUS_SETTING_NAME)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(true);
+
+                if mute_lose_focus {
+                    let chatsounds = self.chatsounds.clone();
+                    let last_volume = self.last_volume.clone();
+
+                    FuturesModule::spawn_future(async move {
+                        let mut chatsounds = chatsounds.lock().await;
+                        let chatsounds = chatsounds.as_mut().unwrap();
+
+                        let mut last_volume = last_volume.lock().await;
+
+                        if !focused {
+                            *last_volume = Some(chatsounds.volume());
+                            chatsounds.set_volume(0.0);
+                        } else if let Some(volume) = *last_volume {
+                            chatsounds.set_volume(volume);
+                        }
+                    });
+                }
             }
 
             IncomingEvent::Tick => {

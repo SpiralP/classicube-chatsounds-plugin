@@ -9,6 +9,7 @@ pub enum IncomingEvent {
     InputDown(InputButtons, bool),
     InputUp(InputButtons, bool),
     InputPress(char),
+    FocusChanged(bool),
 }
 
 /// goes to main thread

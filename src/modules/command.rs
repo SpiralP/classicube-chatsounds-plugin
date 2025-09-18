@@ -13,13 +13,14 @@ use crate::{
     printer::print,
 };
 
-// TODO move file to helpers
-
+pub const MUTE_LOSE_FOCUS_SETTING_NAME: &str = "chatsounds-mute-lose-focus";
 pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 
-const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
+const MUTE_LOSE_FOCUS_COMMAND_HELP: &str =
+    "&a/client chatsounds mute-lose-focus [true|false] &e(Default true)";
 const PLAY_COMMAND_HELP: &str = "&a/client chatsounds play [text]";
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
+const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
 
 pub struct CommandModule {
     owned_command: OwnedChatCommand,
@@ -38,7 +39,7 @@ impl CommandModule {
             "Chatsounds",
             c_command_callback,
             false,
-            vec![VOLUME_COMMAND_HELP, PLAY_COMMAND_HELP, SH_COMMAND_HELP],
+            vec![PLAY_COMMAND_HELP, SH_COMMAND_HELP, VOLUME_COMMAND_HELP],
         );
 
         Self {
@@ -56,23 +57,28 @@ impl CommandModule {
         let chatsounds = chatsounds.as_mut().ok_or_else(|| anyhow!("no"))?;
 
         match args.as_slice() {
-            ["volume"] => {
-                let current_volume = chatsounds.volume() / VOLUME_NORMAL;
+            ["mute-lose-focus"] => {
+                let mute_lose_focus = self
+                    .option_module
+                    .borrow_mut()
+                    .get(MUTE_LOSE_FOCUS_SETTING_NAME)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(true);
+
                 print(format!(
                     "{} (Currently {})",
-                    VOLUME_COMMAND_HELP, current_volume
+                    MUTE_LOSE_FOCUS_SETTING_NAME, mute_lose_focus
                 ));
             }
 
-            ["volume", volume] => {
-                let volume = volume.parse::<f32>()?;
-                print(format!("&eSetting volume to {}", volume));
-
-                chatsounds.set_volume(VOLUME_NORMAL * volume);
+            ["mute-lose-focus", mute_lose_focus] => {
+                let mute_lose_focus = mute_lose_focus.parse::<bool>()?;
 
                 self.option_module
                     .borrow_mut()
-                    .set(VOLUME_SETTING_NAME, format!("{}", volume));
+                    .set(MUTE_LOSE_FOCUS_SETTING_NAME, format!("{}", mute_lose_focus));
+
+                print(format!("&eSet mute-lose-focus to {}", mute_lose_focus));
             }
 
             ["play"] => {
@@ -89,14 +95,36 @@ impl CommandModule {
                 chatsounds.stop_all();
             }
 
-            _ => {
+            ["volume"] => {
                 let current_volume = chatsounds.volume() / VOLUME_NORMAL;
+
                 print(format!(
                     "{} (Currently {})",
                     VOLUME_COMMAND_HELP, current_volume
                 ));
+            }
+
+            ["volume", volume] => {
+                let volume = volume.parse::<f32>()?;
+
+                chatsounds.set_volume(VOLUME_NORMAL * volume);
+
+                self.option_module
+                    .borrow_mut()
+                    .set(VOLUME_SETTING_NAME, format!("{}", volume));
+
+                print(format!("&eSet volume to {}", volume));
+            }
+
+            _ => {
+                let current_volume = chatsounds.volume() / VOLUME_NORMAL;
+                print(MUTE_LOSE_FOCUS_COMMAND_HELP);
                 print(PLAY_COMMAND_HELP);
                 print(SH_COMMAND_HELP);
+                print(format!(
+                    "{} (Currently {})",
+                    VOLUME_COMMAND_HELP, current_volume
+                ));
             }
         }
 

@@ -11,13 +11,14 @@ use classicube_helpers::{
     events::{
         chat::{ChatReceivedEvent, ChatReceivedEventHandler},
         input,
+        window::FocusChangedEventHandler,
     },
     tick::TickEventHandler,
 };
 use classicube_sys::{
     Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents,
     MsgType_MSG_TYPE_NORMAL, Net_Handler, OwnedString, Protocol, Server, UNSAFE_GetString,
-    OPCODE__OPCODE_MESSAGE,
+    WindowInfo, OPCODE__OPCODE_MESSAGE,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -63,6 +64,7 @@ pub struct EventHandlerModule {
     input_press: input::PressEventHandler,
     input_up: input::Up2EventHandler,
     tick_callback: TickEventHandler,
+    focus_changed_callback: FocusChangedEventHandler,
 }
 
 impl EventHandlerModule {
@@ -79,6 +81,7 @@ impl EventHandlerModule {
             input_press: input::PressEventHandler::new(),
             input_up: input::Up2EventHandler::new(),
             tick_callback: TickEventHandler::new(),
+            focus_changed_callback: FocusChangedEventHandler::new(),
         }
     }
 
@@ -296,6 +299,14 @@ impl Module for EventHandlerModule {
             let module = unsafe { &mut *ptr };
 
             module.handle_incoming_event(IncomingEvent::Tick);
+            module.handle_outgoing_events();
+        });
+
+        self.focus_changed_callback.on(move |_event| {
+            let module = unsafe { &mut *ptr };
+
+            let focused = unsafe { WindowInfo.Focused } != 0;
+            module.handle_incoming_event(IncomingEvent::FocusChanged(focused));
             module.handle_outgoing_events();
         });
     }

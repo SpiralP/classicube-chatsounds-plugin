@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 mod helpers;
 mod logger;
 mod modules;
