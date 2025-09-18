@@ -26,17 +26,17 @@ impl OptionModule {
         Input_StorageNames
             .iter()
             .position(|&item| item == s)
-            .map(|n| n as InputButtons)
+            .map(|n| n.try_into().unwrap())
     }
 
-    pub fn get<S: Into<Vec<u8>>>(&self, key: S) -> Option<String> {
+    pub fn get<S: Into<Vec<u8>>>(key: S) -> Option<String> {
         let c_key = CString::new(key).unwrap();
         let c_default = CString::new("").unwrap();
 
         let mut buffer: [c_char; (STRING_SIZE as usize) + 1] = [0; (STRING_SIZE as usize) + 1];
         let mut cc_string_value = classicube_sys::cc_string {
             buffer: buffer.as_mut_ptr(),
-            capacity: STRING_SIZE as u16,
+            capacity: STRING_SIZE.try_into().unwrap(),
             length: 0,
         };
 
@@ -53,7 +53,7 @@ impl OptionModule {
         }
     }
 
-    pub fn set<S: Into<Vec<u8>>>(&mut self, key: S, value: String) {
+    pub fn set<S: Into<Vec<u8>>>(key: S, value: String) {
         let c_key = CString::new(key).unwrap();
 
         let cc_string_value = OwnedString::new(value);
@@ -63,16 +63,15 @@ impl OptionModule {
         }
     }
 
-    fn get_all_keybinds(&self) -> HashMap<&'static str, InputButtons> {
+    fn get_all_keybinds() -> HashMap<&'static str, InputButtons> {
         let mut map = HashMap::with_capacity(bindNames.len());
 
         for (i, keybind_name) in bindNames.iter().copied().enumerate() {
-            let option_name = format!("key-{}", keybind_name);
+            let option_name = format!("key-{keybind_name}");
 
-            let key = self
-                .get(option_name)
+            let key = Self::get(option_name)
                 .and_then(OptionModule::get_key_from_input_name)
-                .unwrap_or_else(|| KeyBind_Defaults[i].button1 as InputButtons);
+                .unwrap_or_else(|| InputButtons::from(KeyBind_Defaults[i].button1));
 
             map.insert(keybind_name, key);
         }
@@ -83,10 +82,10 @@ impl OptionModule {
 
 impl Module for OptionModule {
     fn load(&mut self) {
-        let keybinds = self.get_all_keybinds();
+        let keybinds = Self::get_all_keybinds();
 
-        self.open_chat_key = keybinds.get("Chat").cloned();
-        self.send_chat_key = keybinds.get("SendChat").cloned();
+        self.open_chat_key = keybinds.get("Chat").copied();
+        self.send_chat_key = keybinds.get("SendChat").copied();
     }
 
     fn unload(&mut self) {}

@@ -21,7 +21,6 @@ use classicube_sys::{
     WindowInfo, OPCODE__OPCODE_MESSAGE,
 };
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use lazy_static::lazy_static;
 pub use outgoing_events::*;
 use parking_lot::Mutex;
 use tracing::debug;
@@ -33,7 +32,7 @@ use crate::{
 };
 
 thread_local!(
-    static DEVICE: Cell<Option<*mut InputDevice>> = Default::default();
+    static DEVICE: Cell<Option<*mut InputDevice>> = Cell::default();
 );
 
 thread_local!(
@@ -44,9 +43,7 @@ thread_local!(
     static OLD_MESSAGE_HANDLER: RefCell<Net_Handler> = const { RefCell::new(None) };
 );
 
-lazy_static! {
-    pub static ref OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
-}
+pub static OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
 
 pub trait IncomingEventListener {
     // TODO maybe a on_registered fn
@@ -93,9 +90,9 @@ impl EventHandlerModule {
         self.incoming_event_listeners.push(Box::new(listener));
     }
 
-    pub fn handle_incoming_event(&mut self, event: IncomingEvent) {
-        for listener in self.incoming_event_listeners.iter_mut() {
-            listener.handle_incoming_event(&event);
+    pub fn handle_incoming_event(&mut self, event: &IncomingEvent) {
+        for listener in &mut self.incoming_event_listeners {
+            listener.handle_incoming_event(event);
         }
     }
 
@@ -103,13 +100,13 @@ impl EventHandlerModule {
         self.simulating = true;
 
         for event in self.outgoing_event_receiver.try_iter() {
-            self.handle_outgoing_event(event);
+            Self::handle_outgoing_event(event);
         }
 
         self.simulating = false;
     }
 
-    fn handle_outgoing_event(&self, event: OutgoingEvent) {
+    fn handle_outgoing_event(event: OutgoingEvent) {
         match event {
             OutgoingEvent::ChatAdd(text) => {
                 let owned_string = OwnedString::new(text);
@@ -123,7 +120,7 @@ impl EventHandlerModule {
                 let owned_string = OwnedString::new(msg);
 
                 unsafe {
-                    Chat_AddOf(owned_string.as_cc_string(), msg_type as _);
+                    Chat_AddOf(owned_string.as_cc_string(), msg_type.try_into().unwrap());
                 }
             }
 
@@ -137,7 +134,7 @@ impl EventHandlerModule {
                         Event_RaiseInput(
                             #[allow(static_mut_refs)]
                             &mut InputEvents.Down2,
-                            key as _,
+                            key.try_into().unwrap(),
                             u8::from(repeating),
                             device,
                         );
@@ -151,7 +148,7 @@ impl EventHandlerModule {
                         Event_RaiseInput(
                             #[allow(static_mut_refs)]
                             &mut InputEvents.Up2,
-                            key as _,
+                            key.try_into().unwrap(),
                             u8::from(repeating),
                             device,
                         );
@@ -167,7 +164,7 @@ extern "C" fn message_handler(data: *mut u8) {
         use classicube_sys::MsgType;
 
         let data = unsafe { slice::from_raw_parts(data, 65) };
-        let message_type = data[0] as MsgType;
+        let message_type = MsgType::from(data[0]);
         let text = unsafe { UNSAFE_GetString(&data[1..]) }.to_string();
 
         if message_type == MsgType_MSG_TYPE_NORMAL {
@@ -175,7 +172,7 @@ extern "C" fn message_handler(data: *mut u8) {
             let module = unsafe { &mut *ptr };
 
             if !module.simulating {
-                module.handle_incoming_event(IncomingEvent::ChatReceived(
+                module.handle_incoming_event(&IncomingEvent::ChatReceived(
                     text.to_string(),
                     message_type,
                 ));
@@ -243,7 +240,7 @@ impl Module for EventHandlerModule {
                         return;
                     }
 
-                    module.handle_incoming_event(IncomingEvent::ChatReceived(
+                    module.handle_incoming_event(&IncomingEvent::ChatReceived(
                         message.to_string(),
                         *message_type,
                     ));
@@ -267,7 +264,7 @@ impl Module for EventHandlerModule {
                 if DEVICE.get().is_none() && !device.is_null() {
                     DEVICE.set(Some(*device));
                 }
-                module.handle_incoming_event(IncomingEvent::InputDown(*key, *repeating));
+                module.handle_incoming_event(&IncomingEvent::InputDown(*key, *repeating));
                 module.handle_outgoing_events();
             },
         );
@@ -279,7 +276,7 @@ impl Module for EventHandlerModule {
                 return;
             }
 
-            module.handle_incoming_event(IncomingEvent::InputPress(*key));
+            module.handle_incoming_event(&IncomingEvent::InputPress(*key));
             module.handle_outgoing_events();
         });
 
@@ -291,14 +288,14 @@ impl Module for EventHandlerModule {
                     return;
                 }
 
-                module.handle_incoming_event(IncomingEvent::InputUp(*key, *repeating));
+                module.handle_incoming_event(&IncomingEvent::InputUp(*key, *repeating));
                 module.handle_outgoing_events();
             });
 
         self.tick_callback.on(move |_event| {
             let module = unsafe { &mut *ptr };
 
-            module.handle_incoming_event(IncomingEvent::Tick);
+            module.handle_incoming_event(&IncomingEvent::Tick);
             module.handle_outgoing_events();
         });
 
@@ -306,7 +303,7 @@ impl Module for EventHandlerModule {
             let module = unsafe { &mut *ptr };
 
             let focused = unsafe { WindowInfo.Focused } != 0;
-            module.handle_incoming_event(IncomingEvent::FocusChanged(focused));
+            module.handle_incoming_event(&IncomingEvent::FocusChanged(focused));
             module.handle_outgoing_events();
         });
     }

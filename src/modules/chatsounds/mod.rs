@@ -73,22 +73,19 @@ pub struct ChatsoundsModule {
     entities: SyncShared<Entities>,
     event_handler_module: SyncShared<EventHandlerModule>,
     tab_list: SyncShared<TabList>,
-    option_module: SyncShared<OptionModule>,
 }
 
 impl ChatsoundsModule {
     pub fn new(
-        option_module: SyncShared<OptionModule>,
         entities: SyncShared<Entities>,
         event_handler_module: SyncShared<EventHandlerModule>,
         tab_list: SyncShared<TabList>,
     ) -> Self {
         Self {
-            chatsounds: Default::default(),
+            chatsounds: FutureShared::default(),
             entities,
             event_handler_module,
             tab_list,
-            option_module,
         }
     }
 
@@ -122,10 +119,10 @@ impl ChatsoundsModule {
             match result {
                 Ok(data) => match data {
                     SourceData::Api(data) => {
-                        chatsounds.load_github_api(repo.name, repo.path, data)?
+                        chatsounds.load_github_api(repo.name, repo.path, data)?;
                     }
                     SourceData::MsgPack(data) => {
-                        chatsounds.load_github_msgpack(repo.name, repo.path, data)?
+                        chatsounds.load_github_msgpack(repo.name, repo.path, data)?;
                     }
                 },
 
@@ -144,10 +141,7 @@ impl Module for ChatsoundsModule {
     fn load(&mut self) {
         print(format!("Loading Chatsounds v{}", env!("CARGO_PKG_VERSION")));
 
-        let volume = self
-            .option_module
-            .borrow_mut()
-            .get(VOLUME_SETTING_NAME)
+        let volume = OptionModule::get(VOLUME_SETTING_NAME)
             .and_then(|s| s.parse().ok())
             .unwrap_or(1.0);
 
@@ -194,7 +188,6 @@ impl Module for ChatsoundsModule {
         let chatsounds_event_listener = ChatsoundsEventListener::new(
             self.chatsounds.clone(),
             self.entities.clone(),
-            self.option_module.clone(),
             self.tab_list.clone(),
         );
 

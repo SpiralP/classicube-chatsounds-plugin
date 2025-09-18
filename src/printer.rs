@@ -1,22 +1,19 @@
 use std::time::Instant;
 
 use classicube_sys::MsgType_MSG_TYPE_CLIENTSTATUS_2;
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use tracing::info;
 
 use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
 
-lazy_static! {
-    pub static ref PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
-}
+pub static PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
 
 pub struct Printer {
     status_decay: Option<Instant>,
 }
 
 impl Printer {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { status_decay: None }
     }
 
@@ -52,7 +49,7 @@ impl IncomingEventListener for PrinterEventListener {
 pub fn print<T: Into<String>>(s: T) {
     let s = s.into();
     info!("{}", s);
-    Printer::print(s)
+    Printer::print(s);
 }
 
 pub fn status_forever<T: Into<String>>(s: T) {

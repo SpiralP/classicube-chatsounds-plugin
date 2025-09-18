@@ -1,4 +1,4 @@
-use std::{cell::Cell, os::raw::c_int, slice};
+use std::{cell::Cell, convert::AsRef, os::raw::c_int, ptr, slice, string::ToString};
 
 use anyhow::{anyhow, Result};
 use chatsounds::Chatsounds;
@@ -24,14 +24,12 @@ const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Defau
 
 pub struct CommandModule {
     owned_command: OwnedChatCommand,
-    option_module: SyncShared<OptionModule>,
     event_handler_module: SyncShared<EventHandlerModule>,
     chatsounds: FutureShared<Option<Chatsounds>>,
 }
 
 impl CommandModule {
     pub fn new(
-        option_module: SyncShared<OptionModule>,
         event_handler_module: SyncShared<EventHandlerModule>,
         chatsounds: FutureShared<Option<Chatsounds>>,
     ) -> Self {
@@ -44,41 +42,34 @@ impl CommandModule {
 
         Self {
             owned_command,
-            option_module,
             event_handler_module,
             chatsounds,
         }
     }
 
     async fn command_callback(&mut self, args: Vec<String>) -> Result<()> {
-        let args: Vec<&str> = args.iter().map(|s| s.as_ref()).collect();
+        let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
 
         let mut chatsounds = self.chatsounds.lock().await;
         let chatsounds = chatsounds.as_mut().ok_or_else(|| anyhow!("no"))?;
 
         match args.as_slice() {
             ["mute-lose-focus"] => {
-                let mute_lose_focus = self
-                    .option_module
-                    .borrow_mut()
-                    .get(MUTE_LOSE_FOCUS_SETTING_NAME)
+                let mute_lose_focus = OptionModule::get(MUTE_LOSE_FOCUS_SETTING_NAME)
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(true);
 
                 print(format!(
-                    "{} (Currently {})",
-                    MUTE_LOSE_FOCUS_SETTING_NAME, mute_lose_focus
+                    "{MUTE_LOSE_FOCUS_SETTING_NAME} (Currently {mute_lose_focus})"
                 ));
             }
 
             ["mute-lose-focus", mute_lose_focus] => {
                 let mute_lose_focus = mute_lose_focus.parse::<bool>()?;
 
-                self.option_module
-                    .borrow_mut()
-                    .set(MUTE_LOSE_FOCUS_SETTING_NAME, format!("{}", mute_lose_focus));
+                OptionModule::set(MUTE_LOSE_FOCUS_SETTING_NAME, format!("{mute_lose_focus}"));
 
-                print(format!("&eSet mute-lose-focus to {}", mute_lose_focus));
+                print(format!("&eSet mute-lose-focus to {mute_lose_focus}"));
             }
 
             ["play"] => {
@@ -99,8 +90,7 @@ impl CommandModule {
                 let current_volume = chatsounds.volume() / VOLUME_NORMAL;
 
                 print(format!(
-                    "{} (Currently {})",
-                    VOLUME_COMMAND_HELP, current_volume
+                    "{VOLUME_COMMAND_HELP} (Currently {current_volume})"
                 ));
             }
 
@@ -109,11 +99,9 @@ impl CommandModule {
 
                 chatsounds.set_volume(VOLUME_NORMAL * volume);
 
-                self.option_module
-                    .borrow_mut()
-                    .set(VOLUME_SETTING_NAME, format!("{}", volume));
+                OptionModule::set(VOLUME_SETTING_NAME, format!("{volume}"));
 
-                print(format!("&eSet volume to {}", volume));
+                print(format!("&eSet volume to {volume}"));
             }
 
             _ => {
@@ -122,8 +110,7 @@ impl CommandModule {
                 print(PLAY_COMMAND_HELP);
                 print(SH_COMMAND_HELP);
                 print(format!(
-                    "{} (Currently {})",
-                    VOLUME_COMMAND_HELP, current_volume
+                    "{VOLUME_COMMAND_HELP} (Currently {current_volume})"
                 ));
             }
         }
@@ -142,7 +129,7 @@ impl Module for CommandModule {
         self.owned_command.register();
 
         COMMAND_MODULE.with(|command_module| {
-            command_module.set(Some(self as _));
+            command_module.set(Some(ptr::from_mut(self)));
         });
     }
 
@@ -158,8 +145,8 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, 
         if let Some(ptr) = maybe_ptr.get() {
             let command_module = &mut *ptr;
 
-            let args = slice::from_raw_parts(args, args_count as _);
-            let args: Vec<String> = args.iter().map(|cc_string| cc_string.to_string()).collect();
+            let args = slice::from_raw_parts(args, args_count.try_into().unwrap());
+            let args: Vec<String> = args.iter().map(ToString::to_string).collect();
 
             FuturesModule::block_future(async {
                 if let Err(e) = command_module.command_callback(args).await {

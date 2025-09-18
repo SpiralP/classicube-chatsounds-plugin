@@ -8,13 +8,10 @@ mod printer;
 use std::{os::raw::c_int, ptr};
 
 use classicube_sys::IGameComponent;
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use tracing::debug;
 
-lazy_static! {
-    static ref LOADED: Mutex<bool> = Mutex::new(false);
-}
+static LOADED: Mutex<bool> = Mutex::new(false);
 
 extern "C" fn init() {
     let mut loaded = LOADED.lock();

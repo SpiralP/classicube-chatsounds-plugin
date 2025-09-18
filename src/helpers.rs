@@ -3,7 +3,7 @@ use ncollide3d::na::Vector3;
 use tracing::warn;
 
 pub fn remove_color_left(mut text: &str) -> &str {
-    while text.len() >= 2 && text.get(0..1).map(|c| c == "&").unwrap_or(false) {
+    while text.len() >= 2 && text.get(0..1).is_some_and(|c| c == "&") {
         if let Some(trimmed) = text.get(2..) {
             text = trimmed;
         } else {

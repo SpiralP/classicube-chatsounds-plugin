@@ -60,7 +60,6 @@ pub fn load() {
         modules.push(futures_module);
 
         let chatsounds_module = Rc::new(RefCell::new(ChatsoundsModule::new(
-            option_module.clone(),
             entities,
             event_handler_module.clone(),
             tab_list,
@@ -68,7 +67,6 @@ pub fn load() {
         modules.push(chatsounds_module.clone());
 
         let command_module = Rc::new(RefCell::new(CommandModule::new(
-            option_module.clone(),
             event_handler_module.clone(),
             chatsounds_module.borrow_mut().chatsounds.clone(),
         )));

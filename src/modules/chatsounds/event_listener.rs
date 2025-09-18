@@ -25,7 +25,6 @@ pub struct ChatsoundsEventListener {
     entities: SyncShared<Entities>,
     entity_emitters: ThreadShared<Vec<EntityEmitter>>,
     last_volume: FutureShared<Option<f32>>,
-    option_module: SyncShared<OptionModule>,
     tab_list: SyncShared<TabList>,
 }
 
@@ -33,16 +32,14 @@ impl ChatsoundsEventListener {
     pub fn new(
         chatsounds: FutureShared<Option<Chatsounds>>,
         entities: SyncShared<Entities>,
-        option_module: SyncShared<OptionModule>,
         tab_list: SyncShared<TabList>,
     ) -> Self {
         Self {
             chat_last: None,
             chatsounds,
             entities,
-            entity_emitters: Default::default(),
+            entity_emitters: ThreadShared::default(),
             last_volume: FutureShared::default(),
-            option_module,
             tab_list,
         }
     }
@@ -61,7 +58,7 @@ impl ChatsoundsEventListener {
 
                 // most likely there's a space
                 // the server trims the first line :(
-                full_msg = format!("{} {}", chat_last, full_msg);
+                full_msg = format!("{chat_last} {full_msg}");
                 self.chat_last = Some(full_msg.clone());
             }
         } else {
@@ -115,12 +112,9 @@ impl ChatsoundsEventListener {
             return;
         }
 
-        let (self_pos, self_rot_yaw) =
-            if let Some((self_pos, self_rot_yaw)) = get_self_position_and_yaw() {
-                (self_pos, self_rot_yaw)
-            } else {
-                return;
-            };
+        let Some((self_pos, self_rot_yaw)) = get_self_position_and_yaw() else {
+            return;
+        };
 
         let (id, real_name, said_text, static_pos) = if let Some(said_text) =
             is_global_cs_message(&full_msg)
@@ -232,14 +226,11 @@ impl IncomingEventListener for ChatsoundsEventListener {
     fn handle_incoming_event(&mut self, event: &IncomingEvent) {
         match event.clone() {
             IncomingEvent::ChatReceived(message, msg_type) => {
-                self.handle_chat_received(message, msg_type)
+                self.handle_chat_received(message, msg_type);
             }
 
             IncomingEvent::FocusChanged(focused) => {
-                let mute_lose_focus = self
-                    .option_module
-                    .borrow_mut()
-                    .get(MUTE_LOSE_FOCUS_SETTING_NAME)
+                let mute_lose_focus = OptionModule::get(MUTE_LOSE_FOCUS_SETTING_NAME)
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(true);
 

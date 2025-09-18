@@ -1,19 +1,17 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
-    sync::Mutex,
+    sync::{LazyLock, Mutex},
 };
 
-use lazy_static::lazy_static;
 use rand::prelude::*;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 
 pub const GLOBAL_NAME: &str = "Global";
 
 // TODO make this a field on ChatsoundsModule/EventListener
-lazy_static! {
-    pub static ref ENTITY_COUNTS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
-}
+pub static ENTITY_COUNTS: LazyLock<Mutex<HashMap<String, usize>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 // TODO synced reset on new player/etc
 // TODO self id is 255 but others don't see 255!!

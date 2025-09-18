@@ -44,7 +44,7 @@ pub struct Chat {
 
 impl Chat {
     pub fn new(
-        option_module: SyncShared<OptionModule>,
+        option_module: &SyncShared<OptionModule>,
         chatsounds: FutureShared<Option<Chatsounds>>,
     ) -> Self {
         #[allow(clippy::unnecessary_cast)]
@@ -121,7 +121,7 @@ impl Chat {
 
             let test_pos = hint.find(&input).unwrap_or(usize::MAX);
             if pos != test_pos {
-                print(format!("panic! {} != {}", pos, test_pos));
+                print(format!("panic! {pos} != {test_pos}"));
                 return;
             }
 
@@ -138,12 +138,12 @@ impl Chat {
             let input_pos = if hint_left.is_empty() {
                 0
             } else {
-                colored_hint = format!("&7{}&f{}", hint_left, colored_hint);
+                colored_hint = format!("&7{hint_left}&f{colored_hint}");
                 hint_left.len() + 4 // 4 for &7 and &f
             };
 
             if !hint_right.is_empty() {
-                colored_hint = format!("{}&7{}", colored_hint, hint_right);
+                colored_hint = format!("{colored_hint}&7{hint_right}");
             }
 
             if colored_hint.len() > 64 {
@@ -293,12 +293,12 @@ impl Chat {
             }
 
             if self.history_pos == 0 {
-                self.history_restore = Some(self.text.to_vec());
+                self.history_restore = Some(self.text.clone());
             }
 
             if self.history_pos < self.history.len() {
                 self.history_pos += 1;
-                self.text = self.history[self.history.len() - self.history_pos].to_vec();
+                self.text = self.history[self.history.len() - self.history_pos].clone();
                 self.cursor_pos = self.text.len();
             }
 
@@ -311,15 +311,15 @@ impl Chat {
 
             if self.history_pos > 1 {
                 self.history_pos -= 1;
-                self.text = self.history[self.history.len() - self.history_pos].to_vec();
+                self.text = self.history[self.history.len() - self.history_pos].clone();
             } else if self.history_pos == 1 {
                 self.history_pos -= 1;
                 if let Some(history_restore) = &self.history_restore {
-                    self.text = history_restore.to_vec();
+                    self.text = history_restore.clone();
                 }
             } else if self.history_pos == 0 {
                 if let Some(history_restore) = &self.history_restore {
-                    self.text = history_restore.to_vec();
+                    self.text = history_restore.clone();
                 } else {
                     self.text.clear();
                 }
@@ -386,7 +386,7 @@ impl Chat {
 
             if chat_send_success || key == InputButtons_CCKEY_ESCAPE {
                 if chat_send_success {
-                    self.history.push(self.text.to_vec());
+                    self.history.push(self.text.clone());
                 }
 
                 self.open = false;
@@ -444,7 +444,7 @@ impl Chat {
                 .unwrap_or(false)
     }
 
-    pub async fn handle_key_up(&mut self, key: InputButtons, _repeating: bool) {
+    pub fn handle_key_up(&mut self, key: InputButtons, _repeating: bool) {
         self.handle_held_keys(key, false);
     }
 

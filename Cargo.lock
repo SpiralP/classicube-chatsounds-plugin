@@ -309,7 +309,6 @@ dependencies = [
  "crossbeam-channel",
  "futures",
  "kira",
- "lazy_static",
  "ncollide3d",
  "parking_lot",
  "rand",

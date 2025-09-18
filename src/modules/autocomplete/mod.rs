@@ -35,7 +35,7 @@ impl AutocompleteModule {
 impl Module for AutocompleteModule {
     fn load(&mut self) {
         let autocomplete_event_listener =
-            AutocompleteEventListener::new(self.option_module.clone(), self.chatsounds.clone());
+            AutocompleteEventListener::new(&self.option_module, self.chatsounds.clone());
 
         self.event_handler_module
             .borrow_mut()
@@ -51,7 +51,7 @@ pub struct AutocompleteEventListener {
 
 impl AutocompleteEventListener {
     pub fn new(
-        option_module: SyncShared<OptionModule>,
+        option_module: &SyncShared<OptionModule>,
         chatsounds: FutureShared<Option<Chatsounds>>,
     ) -> Self {
         let (sender, mut receiver) = unbounded();
@@ -70,7 +70,7 @@ impl AutocompleteEventListener {
                     }
 
                     IncomingEvent::InputUp(key, repeating) => {
-                        chat.handle_key_up(key, repeating).await;
+                        chat.handle_key_up(key, repeating);
                     }
 
                     _ => {}
