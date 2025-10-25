@@ -62,7 +62,7 @@ jobs:
             -Path 'target\${{ matrix.config.target }}\release\classicube_chatsounds_plugin.dll' `
             -Destination '.\classicube_chatsounds_windows_${{ matrix.config.arch }}.dll'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v4
         with:
           name: classicube_chatsounds_windows_${{ matrix.config.arch }}
           path: classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
@@ -76,7 +76,7 @@ jobs:
             classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
 
       - name: Upload Release
-        uses: softprops/action-gh-release@aec2ec56f94eb8180ceec724245f64ef008b89f5 # v2.4.0
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -131,13 +131,13 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.so' \
             './classicube_chatsounds_linux_${{ matrix.config.arch }}.so'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v4
         with:
           name: classicube_chatsounds_linux_${{ matrix.config.arch }}
           path: classicube_chatsounds_linux_${{ matrix.config.arch }}.so
 
       - name: Upload Release
-        uses: softprops/action-gh-release@aec2ec56f94eb8180ceec724245f64ef008b89f5 # v2.4.0
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -189,13 +189,13 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.dylib' \
             './classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v4
         with:
           name: classicube_chatsounds_macos_${{ matrix.config.arch }}
           path: classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
 
       - name: Upload Release
-        uses: softprops/action-gh-release@aec2ec56f94eb8180ceec724245f64ef008b89f5 # v2.4.0
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
