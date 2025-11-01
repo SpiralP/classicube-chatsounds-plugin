@@ -62,13 +62,13 @@ jobs:
             -Path 'target\${{ matrix.config.target }}\release\classicube_chatsounds_plugin.dll' `
             -Destination '.\classicube_chatsounds_windows_${{ matrix.config.arch }}.dll'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: classicube_chatsounds_windows_${{ matrix.config.arch }}
           path: classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
 
       - name: VirusTotal Scan
-        uses: crazy-max/ghaction-virustotal@d34968c958ae283fe976efed637081b9f9dcf74f # v4
+        uses: crazy-max/ghaction-virustotal@d34968c958ae283fe976efed637081b9f9dcf74f # v4.2.0
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
@@ -131,7 +131,7 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.so' \
             './classicube_chatsounds_linux_${{ matrix.config.arch }}.so'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: classicube_chatsounds_linux_${{ matrix.config.arch }}
           path: classicube_chatsounds_linux_${{ matrix.config.arch }}.so
@@ -189,7 +189,7 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.dylib' \
             './classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib'
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: classicube_chatsounds_macos_${{ matrix.config.arch }}
           path: classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
