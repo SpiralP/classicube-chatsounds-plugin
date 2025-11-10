@@ -267,7 +267,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "chatsounds"
 version = "3.0.1"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#26aaa8e7f234b411fdddaaef13e98ad99cc044b9"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#b1e29a14b333c9b329af0ff4e2742b9f660c7ffa"
 dependencies = [
  "bytes",
  "futures",
@@ -321,7 +321,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "3.0.0+classicube.1.3.7"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#bada7ab9b88018545c90f8e5ce42ade09c85f1e1"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#3740d005d52dc0090058a097dfb8b389bacd9bf7"
 dependencies = [
  "async-dispatcher",
  "classicube-sys",
@@ -1294,14 +1294,14 @@ dependencies = [
 
 [[package]]
 name = "kira"
-version = "0.10.8"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e7f96b236a2d8b1ecebcd0e4e81462405392699e261f852cf930ea150f15abd"
+checksum = "b8b2ed698ad54d270ee1d8b340604201bf538dacf8bf31e378da00690b9ea20a"
 dependencies = [
  "atomic-arena",
  "glam",
  "mint",
- "paste",
+ "pastey",
  "rtrb",
  "send_wrapper",
  "triple_buffer",
@@ -1865,6 +1865,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pastey"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 
 [[package]]
 name = "percent-encoding"
