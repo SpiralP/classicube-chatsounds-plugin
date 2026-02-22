@@ -15,7 +15,7 @@ classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers
 classicube-sys = "=4.3.0"
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git", branch = "master" }
 crossbeam-channel = "=0.5.15"
-futures = "=0.3.31"
+futures = "=0.3.32"
 kira = { version = "=0.11.0", default-features = false }
 ncollide3d = "=0.33.0"
 parking_lot = "=0.12.5"
