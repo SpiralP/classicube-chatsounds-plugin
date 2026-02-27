@@ -326,7 +326,7 @@ dependencies = [
 
 [[package]]
 name = "classicube-chatsounds-plugin"
-version = "4.2.10"
+version = "4.2.11"
 dependencies = [
  "anyhow",
  "chatsounds",
