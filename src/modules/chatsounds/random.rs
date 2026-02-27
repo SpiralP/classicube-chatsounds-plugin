@@ -4,7 +4,7 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
-use rand::prelude::*;
+use rand::Rng;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 
 pub const GLOBAL_NAME: &str = "Global";
@@ -41,7 +41,7 @@ struct HashedInfo<'a> {
     messages_said: usize,
 }
 
-pub fn get_rng<S: AsRef<str>>(real_name: S) -> Box<dyn RngCore + Send> {
+pub fn get_rng<S: AsRef<str>>(real_name: S) -> Box<dyn Rng + Send> {
     let real_name = real_name.as_ref();
 
     // id isn't synced between players (since self is 255)

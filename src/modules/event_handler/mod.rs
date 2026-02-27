@@ -173,7 +173,7 @@ extern "C" fn message_handler(data: *mut u8) {
 
             if !module.simulating {
                 module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                    text.to_string(),
+                    text.clone(),
                     message_type,
                 ));
                 module.handle_outgoing_events();
@@ -241,7 +241,7 @@ impl Module for EventHandlerModule {
                     }
 
                     module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                        message.to_string(),
+                        message.clone(),
                         *message_type,
                     ));
                     module.handle_outgoing_events();

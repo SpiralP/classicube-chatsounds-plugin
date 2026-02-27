@@ -88,7 +88,7 @@ impl Chat {
                         const MAX_CHAT_INPUT: usize = 192;
 
                         if sentence.len() <= MAX_CHAT_INPUT {
-                            Some((*pos, (*sentence).to_string()))
+                            Some((*pos, (*sentence).clone()))
                         } else {
                             None
                         }
@@ -350,7 +350,7 @@ impl Chat {
                 let show_pos = self.hint_pos.checked_sub(1).unwrap_or(hints_len - 1);
 
                 let (_pos, sentence) = &hints[show_pos];
-                let sentence = sentence.to_string();
+                let sentence = sentence.clone();
                 self.set_text(sentence);
             }
 
