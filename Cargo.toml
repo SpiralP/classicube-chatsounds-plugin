@@ -16,11 +16,11 @@ classicube-sys = "=4.3.0"
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git", branch = "master" }
 crossbeam-channel = "=0.5.15"
 futures = "=0.3.32"
-kira = { version = "=0.11.0", default-features = false }
+kira = { version = "=0.12.0", default-features = false }
 ncollide3d = "=0.33.0"
 parking_lot = "=0.12.5"
-rand = "=0.9.2"
-rand_chacha = "=0.9.0"
+rand = "=0.10.0"
+rand_chacha = "=0.10.0"
 tokio = { version = "=1.49.0", features = ["full"] }
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.22", features = ["env-filter"] }
