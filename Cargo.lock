@@ -320,7 +320,7 @@ dependencies = [
 [[package]]
 name = "chatsounds"
 version = "5.0.3"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#a201162f25d8f853b71640f3e9172d291a44db7c"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#fbf9ed7e883cf62742f976d1199dea3d458b32d1"
 dependencies = [
  "base16ct",
  "bytes",
@@ -375,7 +375,7 @@ dependencies = [
 [[package]]
 name = "classicube-helpers"
 version = "3.0.0+classicube.1.3.7"
-source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#d73614f03be88b392332c6ae7ad3867e6c457a43"
+source = "git+https://github.com/SpiralP/rust-classicube-helpers.git?branch=main#d219dc5577281d0c7e17a47a6a9f5c9097754149"
 dependencies = [
  "async-dispatcher",
  "classicube-sys",
