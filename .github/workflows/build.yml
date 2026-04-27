@@ -62,7 +62,7 @@ jobs:
             -Path 'target\${{ matrix.config.target }}\release\classicube_chatsounds_plugin.dll' `
             -Destination '.\classicube_chatsounds_windows_${{ matrix.config.arch }}.dll'
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: classicube_chatsounds_windows_${{ matrix.config.arch }}
           path: classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
@@ -131,7 +131,7 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.so' \
             './classicube_chatsounds_linux_${{ matrix.config.arch }}.so'
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: classicube_chatsounds_linux_${{ matrix.config.arch }}
           path: classicube_chatsounds_linux_${{ matrix.config.arch }}.so
@@ -189,7 +189,7 @@ jobs:
           mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.dylib' \
             './classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib'
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: classicube_chatsounds_macos_${{ matrix.config.arch }}
           path: classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
