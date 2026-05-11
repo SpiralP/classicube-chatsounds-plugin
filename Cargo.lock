@@ -320,7 +320,7 @@ dependencies = [
 [[package]]
 name = "chatsounds"
 version = "5.1.0"
-source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#64faf34f2b83842cab767b073d7d38f024b17907"
+source = "git+https://github.com/SpiralP/rust-chatsounds.git?branch=main#2872f5fcb50df81180a7fbe3b5e4f3d622582e87"
 dependencies = [
  "base16ct",
  "bytes",
@@ -2875,9 +2875,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.52.2"
+version = "1.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "110a78583f19d5cdb2c5ccf321d1290344e71313c6c37d43520d386027d18386"
+checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
 dependencies = [
  "bytes",
  "libc",
