@@ -1,4 +1,10 @@
-use std::{cell::Cell, convert::AsRef, os::raw::c_int, ptr, slice, string::ToString};
+use std::{
+    cell::{Cell, RefCell},
+    convert::AsRef,
+    os::raw::c_int,
+    ptr, slice,
+    string::ToString,
+};
 
 use anyhow::{anyhow, Result};
 use chatsounds::Chatsounds;
@@ -6,6 +12,7 @@ use classicube_sys::OwnedChatCommand;
 use tracing::error;
 
 use crate::{
+    is_plugin_active,
     modules::{
         chatsounds::{random::get_rng, VOLUME_NORMAL},
         EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
@@ -23,7 +30,6 @@ const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
 
 pub struct CommandModule {
-    owned_command: OwnedChatCommand,
     event_handler_module: SyncShared<EventHandlerModule>,
     chatsounds: FutureShared<Option<Chatsounds>>,
 }
@@ -33,15 +39,7 @@ impl CommandModule {
         event_handler_module: SyncShared<EventHandlerModule>,
         chatsounds: FutureShared<Option<Chatsounds>>,
     ) -> Self {
-        let owned_command = OwnedChatCommand::new(
-            "Chatsounds",
-            c_command_callback,
-            false,
-            vec![PLAY_COMMAND_HELP, SH_COMMAND_HELP, VOLUME_COMMAND_HELP],
-        );
-
         Self {
-            owned_command,
             event_handler_module,
             chatsounds,
         }
@@ -124,9 +122,31 @@ thread_local!(
     static COMMAND_MODULE: Cell<Option<*mut CommandModule>> = const { Cell::new(None) };
 );
 
+// ClassiCube has no Commands_Unregister, so OwnedChatCommand must outlive
+// every Free/Init cycle. We register it once per process and never drop it.
+thread_local!(
+    static OWNED_COMMAND: RefCell<Option<OwnedChatCommand>> = const { RefCell::new(None) };
+);
+
 impl Module for CommandModule {
     fn load(&mut self) {
-        self.owned_command.register();
+        OWNED_COMMAND.with(|cell| {
+            if cell.borrow().is_some() {
+                print(
+                    "&eChatsounds: /client Chatsounds already registered (skipping \
+                     re-registration on hot reload)",
+                );
+                return;
+            }
+            let mut cmd = OwnedChatCommand::new(
+                "Chatsounds",
+                c_command_callback,
+                false,
+                vec![PLAY_COMMAND_HELP, SH_COMMAND_HELP, VOLUME_COMMAND_HELP],
+            );
+            cmd.register();
+            *cell.borrow_mut() = Some(cmd);
+        });
 
         COMMAND_MODULE.with(|command_module| {
             command_module.set(Some(ptr::from_mut(self)));
@@ -137,10 +157,17 @@ impl Module for CommandModule {
         COMMAND_MODULE.with(|command_module| {
             command_module.take();
         });
+        // OWNED_COMMAND is intentionally not dropped — its Box<ChatCommand>
+        // is still referenced by ClassiCube's cmds_head linked list.
     }
 }
 
 unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, args_count: c_int) {
+    if !is_plugin_active() {
+        print("&eChatsounds: plugin not active (between hot-reload Free/Init); ignoring command");
+        return;
+    }
+
     COMMAND_MODULE.with(move |maybe_ptr| {
         if let Some(ptr) = maybe_ptr.get() {
             let command_module = &mut *ptr;

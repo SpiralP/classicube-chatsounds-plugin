@@ -1,11 +1,7 @@
 mod outgoing_events;
 mod types;
 
-use std::{
-    cell::{Cell, RefCell},
-    os::raw::c_int,
-    slice,
-};
+use std::{cell::Cell, os::raw::c_int, slice};
 
 use classicube_helpers::{
     events::{
@@ -28,6 +24,7 @@ use tracing::debug;
 pub use self::types::*;
 use crate::{
     helpers::{is_global_cs_message, is_global_csent_message, is_global_cspos_message},
+    is_plugin_active,
     modules::Module,
 };
 
@@ -39,8 +36,11 @@ thread_local!(
     static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = const { Cell::new(None) };
 );
 
+// Cell because Net_Handler (Option<unsafe extern "C" fn(...)>) is Copy.
+// Semantics: None == our hook is not installed; Some(prior) == installed,
+// `prior` is what Protocol.Handlers[OPCODE_MESSAGE] held before we patched.
 thread_local!(
-    static OLD_MESSAGE_HANDLER: RefCell<Net_Handler> = const { RefCell::new(None) };
+    static OLD_MESSAGE_HANDLER: Cell<Net_Handler> = const { Cell::new(None) };
 );
 
 pub static OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
@@ -160,56 +160,73 @@ impl EventHandlerModule {
 }
 
 extern "C" fn message_handler(data: *mut u8) {
-    {
+    if is_plugin_active() {
         use classicube_sys::MsgType;
 
-        let data = unsafe { slice::from_raw_parts(data, 65) };
-        let message_type = MsgType::from(data[0]);
-        let text = unsafe { UNSAFE_GetString(&data[1..]) }.to_string();
+        let bytes = unsafe { slice::from_raw_parts(data, 65) };
+        let message_type = MsgType::from(bytes[0]);
 
         if message_type == MsgType_MSG_TYPE_NORMAL {
-            let ptr = EVENT_HANDLER_MODULE.get().unwrap();
-            let module = unsafe { &mut *ptr };
+            if let Some(ptr) = EVENT_HANDLER_MODULE.get() {
+                let text = unsafe { UNSAFE_GetString(&bytes[1..]) }.to_string();
+                let module = unsafe { &mut *ptr };
 
-            if !module.simulating {
-                module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                    text.clone(),
-                    message_type,
-                ));
-                module.handle_outgoing_events();
-            }
+                if !module.simulating {
+                    module.handle_incoming_event(&IncomingEvent::ChatReceived(
+                        text.clone(),
+                        message_type,
+                    ));
+                    module.handle_outgoing_events();
+                }
 
-            if let Some(text) = is_global_cs_message(&text) {
-                debug!(?text, "hide global cs message");
-                return;
-            } else if let Some((text, pos)) = is_global_cspos_message(&text) {
-                debug!(?text, ?pos, "hide global cspos message");
-                return;
-            } else if let Some((text, id)) = is_global_csent_message(&text) {
-                debug!(?text, ?id, "hide global csent message");
-                return;
+                if let Some(text) = is_global_cs_message(&text) {
+                    debug!(?text, "hide global cs message");
+                    return;
+                } else if let Some((text, pos)) = is_global_cspos_message(&text) {
+                    debug!(?text, ?pos, "hide global cspos message");
+                    return;
+                } else if let Some((text, id)) = is_global_csent_message(&text) {
+                    debug!(?text, ?id, "hide global csent message");
+                    return;
+                }
             }
         }
     }
 
     OLD_MESSAGE_HANDLER.with(|cell| {
-        let option = &*cell.borrow();
-        let f = option.unwrap();
-        unsafe {
-            f(data);
+        if let Some(f) = cell.get() {
+            unsafe {
+                f(data);
+            }
         }
     });
 }
 
 pub fn install_message_handler() {
-    let old_handler = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
-    unsafe {
-        Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
-    }
-
     OLD_MESSAGE_HANDLER.with(|cell| {
-        let option = &mut *cell.borrow_mut();
-        *option = old_handler;
+        if cell.get().is_some() {
+            return; // already installed; uninstall must be called first
+        }
+        let prior = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
+        unsafe {
+            Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
+        }
+        cell.set(prior);
+    });
+}
+
+pub fn uninstall_message_handler() {
+    OLD_MESSAGE_HANDLER.with(|cell| {
+        let prior = cell.get();
+        if prior.is_some() {
+            // Restore Protocol.Handlers before clearing the cell so that any
+            // in-flight invocation of message_handler still finds the prior
+            // pointer in OLD_MESSAGE_HANDLER on its fall-through path.
+            unsafe {
+                Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = prior;
+            }
+            cell.set(None);
+        }
     });
 }
 
@@ -308,5 +325,25 @@ impl Module for EventHandlerModule {
         });
     }
 
-    fn unload(&mut self) {}
+    fn unload(&mut self) {
+        // Remove our message_handler from Protocol.Handlers before tearing
+        // down per-load state, so it can't fire during the gap and read
+        // dangling pointers.
+        uninstall_message_handler();
+
+        // Drop the sender before EventHandlerModule (and thus its Receiver)
+        // is dropped, so any outgoing_events::new_outgoing_event during the
+        // gap sees None instead of a closed channel.
+        {
+            let mut outgoing_sender = OUTGOING_SENDER.lock();
+            *outgoing_sender = None;
+        }
+
+        EVENT_HANDLER_MODULE.set(None);
+        DEVICE.set(None);
+
+        // classicube-helpers event fields (chat_received, input_*,
+        // tick_callback, focus_changed_callback) unregister via Drop when
+        // self is dropped — no manual work needed.
+    }
 }

@@ -5,58 +5,60 @@ mod logger;
 mod modules;
 mod printer;
 
-use std::{os::raw::c_int, ptr};
+use std::{
+    os::raw::c_int,
+    ptr,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use classicube_sys::IGameComponent;
-use parking_lot::Mutex;
 use tracing::debug;
 
-static LOADED: Mutex<bool> = Mutex::new(false);
+// Single source of truth for "modules loaded / callbacks may dereference
+// per-load state". ClassiCube invokes Init/Free/Reset from the main thread,
+// so a lock-free atomic is sufficient — no Mutex needed.
+pub static PLUGIN_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+pub fn is_plugin_active() -> bool {
+    PLUGIN_ACTIVE.load(Ordering::Acquire)
+}
 
 extern "C" fn init() {
-    let mut loaded = LOADED.lock();
-
-    if !*loaded {
-        color_backtrace::install_with_settings(
-            color_backtrace::Settings::new().verbosity(color_backtrace::Verbosity::Full),
-        );
-
-        logger::initialize(true, false);
-
-        debug!("init: modules::load()");
-        modules::load();
-
-        *loaded = true;
+    if PLUGIN_ACTIVE.load(Ordering::Acquire) {
+        return;
     }
+
+    color_backtrace::install_with_settings(
+        color_backtrace::Settings::new().verbosity(color_backtrace::Verbosity::Full),
+    );
+
+    logger::initialize(true, false);
+
+    debug!("init: modules::load()");
+    modules::load();
+
+    PLUGIN_ACTIVE.store(true, Ordering::Release);
 }
 
 extern "C" fn reset() {
-    let mut loaded = LOADED.lock();
-
-    if *loaded {
+    if PLUGIN_ACTIVE.swap(false, Ordering::AcqRel) {
         debug!("reset: modules::unload()");
         modules::unload();
-
-        *loaded = false;
     }
 
-    if !*loaded {
-        debug!("reset: modules::load()");
-        modules::load();
+    debug!("reset: modules::load()");
+    modules::load();
 
-        *loaded = true;
-    }
+    PLUGIN_ACTIVE.store(true, Ordering::Release);
 }
 
 extern "C" fn free() {
-    let mut loaded = LOADED.lock();
-
-    if *loaded {
-        debug!("free: modules::unload()");
-        modules::unload();
-
-        *loaded = false;
+    if !PLUGIN_ACTIVE.swap(false, Ordering::AcqRel) {
+        return;
     }
+
+    debug!("free: modules::unload()");
+    modules::unload();
 }
 
 #[allow(non_upper_case_globals)]

@@ -5,7 +5,7 @@ use crate::modules::event_handler::{OutgoingEvent, OUTGOING_SENDER};
 pub fn new_outgoing_event(event: OutgoingEvent) {
     let mut outgoing_sender = OUTGOING_SENDER.lock();
     if let Some(sender) = outgoing_sender.as_mut() {
-        sender.send(event).unwrap();
+        let _ = sender.send(event);
     }
 }
 
