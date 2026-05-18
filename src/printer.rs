@@ -4,7 +4,7 @@ use classicube_sys::MsgType_MSG_TYPE_CLIENTSTATUS_2;
 use parking_lot::Mutex;
 use tracing::info;
 
-use crate::modules::event_handler::{chat_add, chat_add_of, IncomingEvent, IncomingEventListener};
+use crate::modules::event_handler::{IncomingEvent, IncomingEventListener, chat_add, chat_add_of};
 
 pub static PRINTER: Mutex<Printer> = Mutex::new(Printer::new());
 
@@ -36,11 +36,11 @@ impl IncomingEventListener for PrinterEventListener {
 
             let now = Instant::now();
 
-            if let Some(status_decay) = printer.status_decay {
-                if now >= status_decay {
-                    chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
-                    printer.status_decay = None;
-                }
+            if let Some(status_decay) = printer.status_decay
+                && now >= status_decay
+            {
+                chat_add_of("", MsgType_MSG_TYPE_CLIENTSTATUS_2);
+                printer.status_decay = None;
             }
         }
     }

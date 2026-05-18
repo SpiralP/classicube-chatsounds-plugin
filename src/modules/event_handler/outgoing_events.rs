@@ -1,6 +1,6 @@
 use classicube_sys::{InputButtons, MsgType};
 
-use crate::modules::event_handler::{OutgoingEvent, OUTGOING_SENDER};
+use crate::modules::event_handler::{OUTGOING_SENDER, OutgoingEvent};
 
 pub fn new_outgoing_event(event: OutgoingEvent) {
     let mut outgoing_sender = OUTGOING_SENDER.lock();

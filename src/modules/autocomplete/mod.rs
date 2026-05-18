@@ -2,14 +2,14 @@ mod chat;
 
 use chatsounds::Chatsounds;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
+    channel::mpsc::{UnboundedSender, unbounded},
     prelude::*,
 };
 
 use self::chat::Chat;
 use crate::modules::{
-    event_handler::{IncomingEvent, IncomingEventListener},
     EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
+    event_handler::{IncomingEvent, IncomingEventListener},
 };
 
 pub struct AutocompleteModule {

@@ -6,7 +6,7 @@ use std::{
     string::ToString,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chatsounds::Chatsounds;
 use classicube_sys::OwnedChatCommand;
 use tracing::error;
@@ -14,8 +14,8 @@ use tracing::error;
 use crate::{
     is_plugin_active,
     modules::{
-        chatsounds::{random::get_rng, VOLUME_NORMAL},
         EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
+        chatsounds::{VOLUME_NORMAL, random::get_rng},
     },
     printer::print,
 };
@@ -170,9 +170,9 @@ unsafe extern "C" fn c_command_callback(args: *const classicube_sys::cc_string, 
 
     COMMAND_MODULE.with(move |maybe_ptr| {
         if let Some(ptr) = maybe_ptr.get() {
-            let command_module = &mut *ptr;
+            let command_module = unsafe { &mut *ptr };
 
-            let args = slice::from_raw_parts(args, args_count.try_into().unwrap());
+            let args = unsafe { slice::from_raw_parts(args, args_count.try_into().unwrap()) };
             let args: Vec<String> = args.iter().map(ToString::to_string).collect();
 
             FuturesModule::block_future(async {

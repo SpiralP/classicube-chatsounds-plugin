@@ -13,9 +13,9 @@ use tracing::error;
 
 use crate::{
     modules::{
+        FutureShared, SyncShared,
         event_handler::{simulate_char, simulate_key},
         option::OptionModule,
-        FutureShared, SyncShared,
     },
     printer::{print, status_forever},
 };

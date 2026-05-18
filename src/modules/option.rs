@@ -1,8 +1,8 @@
 use std::{collections::HashMap, ffi::CString, os::raw::c_char};
 
 use classicube_sys::{
-    bindNames, InputButtons, Input_StorageNames, KeyBind_Defaults, Options_Get, Options_Set,
-    OwnedString, STRING_SIZE,
+    Input_StorageNames, InputButtons, KeyBind_Defaults, Options_Get, Options_Set, OwnedString,
+    STRING_SIZE, bindNames,
 };
 
 use crate::modules::Module;

@@ -13,10 +13,10 @@ use classicube_helpers::{
 };
 use classicube_sys::{
     Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents,
-    MsgType_MSG_TYPE_NORMAL, Net_Handler, OwnedString, Protocol, Server, UNSAFE_GetString,
-    WindowInfo, OPCODE__OPCODE_MESSAGE,
+    MsgType_MSG_TYPE_NORMAL, Net_Handler, OPCODE__OPCODE_MESSAGE, OwnedString, Protocol, Server,
+    UNSAFE_GetString, WindowInfo,
 };
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 pub use outgoing_events::*;
 use parking_lot::Mutex;
 use tracing::debug;
@@ -166,29 +166,29 @@ extern "C" fn message_handler(data: *mut u8) {
         let bytes = unsafe { slice::from_raw_parts(data, 65) };
         let message_type = MsgType::from(bytes[0]);
 
-        if message_type == MsgType_MSG_TYPE_NORMAL {
-            if let Some(ptr) = EVENT_HANDLER_MODULE.get() {
-                let text = unsafe { UNSAFE_GetString(&bytes[1..]) }.to_string();
-                let module = unsafe { &mut *ptr };
+        if message_type == MsgType_MSG_TYPE_NORMAL
+            && let Some(ptr) = EVENT_HANDLER_MODULE.get()
+        {
+            let text = unsafe { UNSAFE_GetString(&bytes[1..]) }.to_string();
+            let module = unsafe { &mut *ptr };
 
-                if !module.simulating {
-                    module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                        text.clone(),
-                        message_type,
-                    ));
-                    module.handle_outgoing_events();
-                }
+            if !module.simulating {
+                module.handle_incoming_event(&IncomingEvent::ChatReceived(
+                    text.clone(),
+                    message_type,
+                ));
+                module.handle_outgoing_events();
+            }
 
-                if let Some(text) = is_global_cs_message(&text) {
-                    debug!(?text, "hide global cs message");
-                    return;
-                } else if let Some((text, pos)) = is_global_cspos_message(&text) {
-                    debug!(?text, ?pos, "hide global cspos message");
-                    return;
-                } else if let Some((text, id)) = is_global_csent_message(&text) {
-                    debug!(?text, ?id, "hide global csent message");
-                    return;
-                }
+            if let Some(text) = is_global_cs_message(&text) {
+                debug!(?text, "hide global cs message");
+                return;
+            } else if let Some((text, pos)) = is_global_cspos_message(&text) {
+                debug!(?text, ?pos, "hide global cspos message");
+                return;
+            } else if let Some((text, id)) = is_global_csent_message(&text) {
+                debug!(?text, ?id, "hide global csent message");
+                return;
             }
         }
     }

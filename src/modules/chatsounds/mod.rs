@@ -5,7 +5,7 @@ mod send_entity;
 
 use std::{fmt::Display, fs, path::Path, pin::Pin};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chatsounds::Chatsounds;
 use classicube_helpers::{entities::Entities, tab_list::TabList};
 use futures::prelude::*;
@@ -15,7 +15,7 @@ use self::event_listener::ChatsoundsEventListener;
 use super::{FutureShared, SyncShared};
 use crate::{
     modules::{
-        command::VOLUME_SETTING_NAME, EventHandlerModule, FuturesModule, Module, OptionModule,
+        EventHandlerModule, FuturesModule, Module, OptionModule, command::VOLUME_SETTING_NAME,
     },
     printer::print,
 };

@@ -1,11 +1,11 @@
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::{HashMap, hash_map::DefaultHasher},
     hash::{Hash, Hasher},
     sync::{LazyLock, Mutex},
 };
 
 use rand::Rng;
-use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
+use rand_chacha::{ChaChaRng, rand_core::SeedableRng};
 
 pub const GLOBAL_NAME: &str = "Global";
 

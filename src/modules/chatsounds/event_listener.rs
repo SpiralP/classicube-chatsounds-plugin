@@ -1,7 +1,7 @@
 use chatsounds::Chatsounds;
 use classicube_helpers::{
-    entities::{Entities, ENTITY_SELF_ID},
-    tab_list::{remove_color, TabList},
+    entities::{ENTITY_SELF_ID, Entities},
+    tab_list::{TabList, remove_color},
 };
 use classicube_sys::{MsgType, MsgType_MSG_TYPE_NORMAL, Server, Vec3, WindowInfo};
 
@@ -12,10 +12,10 @@ use crate::{
         is_global_csent_message, is_global_cspos_message,
     },
     modules::{
-        chatsounds::random::{get_rng, GLOBAL_NAME},
+        FutureShared, FuturesModule, OptionModule, SyncShared, ThreadShared,
+        chatsounds::random::{GLOBAL_NAME, get_rng},
         command::MUTE_LOSE_FOCUS_SETTING_NAME,
         event_handler::{IncomingEvent, IncomingEventListener},
-        FutureShared, FuturesModule, OptionModule, SyncShared, ThreadShared,
     },
 };
 
@@ -78,7 +78,7 @@ impl ChatsoundsEventListener {
         if let Some(pos) = opt {
             // &]SpiralP
             let left = &full_msg[..pos]; // left without colon
-                                         // &faaa
+            // &faaa
             let right = &full_msg[(pos + 2)..]; // right without colon
 
             // TODO title is [ ] before nick, team is < > before nick, also there are rank

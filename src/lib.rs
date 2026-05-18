@@ -61,12 +61,10 @@ extern "C" fn free() {
     modules::unload();
 }
 
-#[allow(non_upper_case_globals)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static Plugin_ApiVersion: c_int = 1;
 
-#[allow(non_upper_case_globals)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static mut Plugin_Component: IGameComponent = IGameComponent {
     // Called when the game is being loaded.
     Init: Some(init),
