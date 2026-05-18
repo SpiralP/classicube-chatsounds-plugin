@@ -1,11 +1,9 @@
-name: Build
+name: build
 
 on:
   pull_request:
-    branches: [master, main]
-  push:
-    branches: ["*"]
-    tags: ["*"]
+    branches: [main, master, alpha, beta]
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write # for uploading release artifacts
+  contents: read # for checkout
+  id-token: write # OIDC token for Sigstore signing
+  attestations: write # persist build-provenance attestations
 
 jobs:
   linux_nix:
@@ -21,184 +21,54 @@ jobs:
 
   windows:
     name: Build Windows ${{ matrix.config.arch }}
-    runs-on: windows-latest
+    runs-on: windows-2025
     strategy:
       fail-fast: false
       matrix:
         config:
-          - { arch: x86_64, bits: 64, target: x86_64-pc-windows-msvc }
-          - { arch: i686, bits: 32, target: i686-pc-windows-msvc }
-
+          - { arch: x86_64, target: x86_64-pc-windows-msvc }
+          - { arch: i686, target: i686-pc-windows-msvc }
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: setup-msbuild
-        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
-
-      - name: Install rust
-        run: |
-          rustup default stable
-          rustup component add rustfmt
-          rustup target add ${{ matrix.config.target }}
-
-      - name: Build
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo build --target ${{ matrix.config.target }}
-
-      - name: Test
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo test --target ${{ matrix.config.target }} -- --nocapture --test-threads 1
-          Move-Item `
-            -Path 'target\${{ matrix.config.target }}\debug\classicube_chatsounds_plugin.dll' `
-            -Destination '.\classicube_chatsounds_windows_${{ matrix.config.arch }}.dll'
-
-      - name: Build Release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          cargo build --target ${{ matrix.config.target }} --release
-          Move-Item `
-            -Path 'target\${{ matrix.config.target }}\release\classicube_chatsounds_plugin.dll' `
-            -Destination '.\classicube_chatsounds_windows_${{ matrix.config.arch }}.dll'
-
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: SpiralP/github-reusable-workflows/.github/actions/build-classicube-plugin@7e0f2e3759bc2b0576a8921dfa33fb449d5e8a1b # main
         with:
-          name: classicube_chatsounds_windows_${{ matrix.config.arch }}
-          path: classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
-
-      - name: VirusTotal Scan
-        uses: crazy-max/ghaction-virustotal@d34968c958ae283fe976efed637081b9f9dcf74f # v4.2.0
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        with:
-          vt_api_key: ${{ secrets.VT_API_KEY }}
-          files: |
-            classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            classicube_chatsounds_windows_${{ matrix.config.arch }}.dll
+          arch: ${{ matrix.config.arch }}
+          target: ${{ matrix.config.target }}
 
   linux:
     name: Build Linux ${{ matrix.config.arch }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         config:
           - { arch: x86_64, target: x86_64-unknown-linux-gnu }
           # - { arch: i686, target: i686-unknown-linux-gnu }
-
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install deps
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install clang llvm
           sudo apt-get -y install mesa-common-dev libopenal-dev libcurl4-openssl-dev libgl1-mesa-dev
-          sudo apt-get -y install libasound2-dev libpango1.0-dev libatk1.0-dev libgtk-3-dev libssl-dev openssl
+          sudo apt-get -y install libasound2-dev libpango1.0-dev libatk1.0-dev libgtk-3-dev
 
-      - name: Install rust
-        run: |
-          rustup default stable
-          rustup component add rustfmt
-          rustup target add ${{ matrix.config.target }}
-
-      - name: Build
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo build --target ${{ matrix.config.target }}
-          file 'target/${{ matrix.config.target }}/debug/libclassicube_chatsounds_plugin.so'
-
-      - name: Test
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo test --target ${{ matrix.config.target }} -- --nocapture --test-threads 1
-          mv 'target/${{ matrix.config.target }}/debug/libclassicube_chatsounds_plugin.so' \
-            './classicube_chatsounds_linux_${{ matrix.config.arch }}.so'
-
-      - name: Build Release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          cargo build --target ${{ matrix.config.target }} --release
-          file 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.so'
-          mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.so' \
-            './classicube_chatsounds_linux_${{ matrix.config.arch }}.so'
-
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: SpiralP/github-reusable-workflows/.github/actions/build-classicube-plugin@7e0f2e3759bc2b0576a8921dfa33fb449d5e8a1b # main
         with:
-          name: classicube_chatsounds_linux_${{ matrix.config.arch }}
-          path: classicube_chatsounds_linux_${{ matrix.config.arch }}.so
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            classicube_chatsounds_linux_${{ matrix.config.arch }}.so
+          arch: ${{ matrix.config.arch }}
+          target: ${{ matrix.config.target }}
 
   mac:
     name: Build MacOS ${{ matrix.config.arch }}
-    runs-on: macos-latest
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
         config:
           - { arch: x86_64, target: x86_64-apple-darwin }
-
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install deps
-        run: |
-          brew install llvm
-          echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
-
-      - name: Install rust
-        run: |
-          rustup default stable
-          rustup component add rustfmt
-          rustup target add ${{ matrix.config.target }}
-
-      - name: Build
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo build --target ${{ matrix.config.target }}
-          file 'target/${{ matrix.config.target }}/debug/libclassicube_chatsounds_plugin.dylib'
-
-      - name: Test
-        if: ${{ startsWith(github.ref, 'refs/tags/') != true }}
-        run: |
-          cargo test --target ${{ matrix.config.target }} -- --nocapture --test-threads 1
-          mv 'target/${{ matrix.config.target }}/debug/libclassicube_chatsounds_plugin.dylib' \
-            './classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib'
-
-      - name: Build Release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          cargo build --target ${{ matrix.config.target }} --release
-          file 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.dylib'
-          mv 'target/${{ matrix.config.target }}/release/libclassicube_chatsounds_plugin.dylib' \
-            './classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib'
-
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: SpiralP/github-reusable-workflows/.github/actions/build-classicube-plugin@7e0f2e3759bc2b0576a8921dfa33fb449d5e8a1b # main
         with:
-          name: classicube_chatsounds_macos_${{ matrix.config.arch }}
-          path: classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            classicube_chatsounds_macos_${{ matrix.config.arch }}.dylib
+          arch: ${{ matrix.config.arch }}
+          target: ${{ matrix.config.target }}
