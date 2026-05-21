@@ -15,7 +15,7 @@ use crate::{
     is_plugin_active,
     modules::{
         EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
-        chatsounds::{VOLUME_NORMAL, random::get_rng},
+        chatsounds::{ChatsoundsModule, VOLUME_NORMAL, random::get_rng},
     },
     printer::print,
 };
@@ -26,6 +26,7 @@ pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
 const MUTE_LOSE_FOCUS_COMMAND_HELP: &str =
     "&a/client chatsounds mute-lose-focus [true|false] &e(Default true)";
 const PLAY_COMMAND_HELP: &str = "&a/client chatsounds play [text]";
+const RELOAD_COMMAND_HELP: &str = "&a/client chatsounds reload";
 const SH_COMMAND_HELP: &str = "&a/client chatsounds sh";
 const VOLUME_COMMAND_HELP: &str = "&a/client chatsounds volume [volume] &e(Default 1.0)";
 
@@ -47,6 +48,16 @@ impl CommandModule {
 
     async fn command_callback(&mut self, args: Vec<String>) -> Result<()> {
         let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
+
+        if let ["reload"] = args.as_slice() {
+            let mut chatsounds_option = self.chatsounds.lock().await;
+            print("&eReloading chatsounds...");
+            let mut new_chatsounds = ChatsoundsModule::new_chatsounds()?;
+            ChatsoundsModule::load_sources(&mut new_chatsounds).await?;
+            *chatsounds_option = Some(new_chatsounds);
+            print("&aReloaded chatsounds");
+            return Ok(());
+        }
 
         let mut chatsounds = self.chatsounds.lock().await;
         let chatsounds = chatsounds.as_mut().ok_or_else(|| anyhow!("no"))?;
@@ -106,6 +117,7 @@ impl CommandModule {
                 let current_volume = chatsounds.volume() / VOLUME_NORMAL;
                 print(MUTE_LOSE_FOCUS_COMMAND_HELP);
                 print(PLAY_COMMAND_HELP);
+                print(RELOAD_COMMAND_HELP);
                 print(SH_COMMAND_HELP);
                 print(format!(
                     "{VOLUME_COMMAND_HELP} (Currently {current_volume})"
@@ -142,7 +154,12 @@ impl Module for CommandModule {
                 "Chatsounds",
                 c_command_callback,
                 false,
-                vec![PLAY_COMMAND_HELP, SH_COMMAND_HELP, VOLUME_COMMAND_HELP],
+                vec![
+                    PLAY_COMMAND_HELP,
+                    RELOAD_COMMAND_HELP,
+                    SH_COMMAND_HELP,
+                    VOLUME_COMMAND_HELP,
+                ],
             );
             cmd.register();
             *cell.borrow_mut() = Some(cmd);

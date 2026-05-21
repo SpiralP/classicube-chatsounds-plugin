@@ -89,7 +89,26 @@ impl ChatsoundsModule {
         }
     }
 
-    async fn load_sources(chatsounds: &mut Chatsounds) -> Result<()> {
+    pub(super) fn new_chatsounds() -> Result<Chatsounds> {
+        if !fs::metadata("plugins")
+            .map(|meta| meta.is_dir())
+            .unwrap_or(false)
+        {
+            bail!("plugins is not a dir or doesn't exist");
+        }
+        let path = Path::new("plugins/chatsounds");
+        fs::create_dir_all(path)?;
+
+        let volume = OptionModule::get(VOLUME_SETTING_NAME)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1.0);
+
+        let mut chatsounds = Chatsounds::new(path)?;
+        chatsounds.set_volume(VOLUME_NORMAL * volume);
+        Ok(chatsounds)
+    }
+
+    pub(super) async fn load_sources(chatsounds: &mut Chatsounds) -> Result<()> {
         enum SourceData {
             Api(chatsounds::GitHubApiTrees),
             MsgPack(chatsounds::GitHubMsgpackEntries),
@@ -141,36 +160,14 @@ impl Module for ChatsoundsModule {
     fn load(&mut self) {
         print(format!("Loading Chatsounds v{}", env!("CARGO_PKG_VERSION")));
 
-        let volume = OptionModule::get(VOLUME_SETTING_NAME)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1.0);
-
         let chatsounds_option = self.chatsounds.clone();
         FuturesModule::spawn_future(async move {
             let mut chatsounds_option = chatsounds_option.lock().await;
 
             let future = async {
-                let mut chatsounds = {
-                    if fs::metadata("plugins")
-                        .map(|meta| meta.is_dir())
-                        .unwrap_or(false)
-                    {
-                        let path = Path::new("plugins/chatsounds");
-                        fs::create_dir_all(path).unwrap();
-
-                        let mut chatsounds = Chatsounds::new(path).unwrap();
-
-                        chatsounds.set_volume(VOLUME_NORMAL * volume);
-
-                        chatsounds
-                    } else {
-                        bail!("plugins is not a dir or doesn't exist");
-                    }
-                };
-
+                let mut chatsounds = ChatsoundsModule::new_chatsounds()?;
                 ChatsoundsModule::load_sources(&mut chatsounds).await?;
-
-                Ok(chatsounds)
+                Ok::<_, anyhow::Error>(chatsounds)
             };
 
             match future.await {
