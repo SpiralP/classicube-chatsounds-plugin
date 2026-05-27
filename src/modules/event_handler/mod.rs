@@ -1,7 +1,7 @@
 mod outgoing_events;
 mod types;
 
-use std::{cell::Cell, os::raw::c_int, slice};
+use std::{cell::Cell, os::raw::c_int, ptr, slice};
 
 use classicube_helpers::{
     events::{
@@ -202,32 +202,49 @@ extern "C" fn message_handler(data: *mut u8) {
     });
 }
 
+fn is_our_handler(handler: Net_Handler) -> bool {
+    handler.is_some_and(|h| ptr::fn_addr_eq(h, message_handler as unsafe extern "C" fn(*mut u8)))
+}
+
 pub fn install_message_handler() {
-    OLD_MESSAGE_HANDLER.with(|cell| {
-        if cell.get().is_some() {
-            return; // already installed; uninstall must be called first
-        }
-        let prior = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
-        unsafe {
-            Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
-        }
-        cell.set(prior);
-    });
+    let current = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
+
+    // Already at the top of the chain — nothing to do.
+    if is_our_handler(current) {
+        return;
+    }
+
+    // We previously installed ourselves and another plugin has since stacked
+    // its own hook on top. Re-pushing to the top would set
+    //   slot = us, OLD_MESSAGE_HANDLER = other_plugin
+    // while other_plugin's saved "old" still points at us — an infinite
+    // recursion through our own handler. Leave the chain alone; we're still
+    // reachable via the existing chain.
+    if OLD_MESSAGE_HANDLER.with(Cell::get).is_some() {
+        return;
+    }
+
+    unsafe {
+        Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
+    }
+    OLD_MESSAGE_HANDLER.with(|cell| cell.set(current));
 }
 
 pub fn uninstall_message_handler() {
-    OLD_MESSAGE_HANDLER.with(|cell| {
-        let prior = cell.get();
-        if prior.is_some() {
-            // Restore Protocol.Handlers before clearing the cell so that any
-            // in-flight invocation of message_handler still finds the prior
-            // pointer in OLD_MESSAGE_HANDLER on its fall-through path.
-            unsafe {
-                Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = prior;
-            }
-            cell.set(None);
+    let current = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
+
+    if is_our_handler(current) {
+        // We're still on top — safe to splice ourselves out.
+        let prior = OLD_MESSAGE_HANDLER.with(Cell::take);
+        unsafe {
+            Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = prior;
         }
-    });
+    }
+    // Else: another plugin stacked on top of us. Overwriting the slot would
+    // drop their hook out of the chain. Leave Protocol.Handlers alone, and
+    // keep OLD_MESSAGE_HANDLER populated — our message_handler is still
+    // reachable via the chain and needs OLD to fall through to the original
+    // while is_plugin_active() is false.
 }
 
 impl Module for EventHandlerModule {
