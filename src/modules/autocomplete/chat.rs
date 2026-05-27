@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chatsounds::Chatsounds;
+use chatsounds::{Chatsounds, normalize_sentence};
 use classicube_sys::{
     InputButtons, InputButtons_CCKEY_BACKSPACE, InputButtons_CCKEY_DELETE, InputButtons_CCKEY_DOWN,
     InputButtons_CCKEY_END, InputButtons_CCKEY_ENTER, InputButtons_CCKEY_ESCAPE,
@@ -17,7 +17,7 @@ use crate::{
         event_handler::{simulate_char, simulate_key},
         option::OptionModule,
     },
-    printer::{print, status_forever},
+    printer::status_forever,
 };
 
 pub struct Chat {
@@ -40,6 +40,57 @@ pub struct Chat {
     send_chat_key: InputButtons,
 
     chatsounds: FutureShared<Option<Chatsounds>>,
+}
+
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+enum HintRender {
+    OutOfBounds { hint_pos: usize, hints_len: usize },
+    Mismatch { pos: usize, test_pos: usize },
+    Full,
+    Colored(String),
+}
+
+fn format_hint(input: &str, hints: &[(usize, String)], hint_pos: usize) -> HintRender {
+    let input_len = input.len();
+
+    let Some((pos, hint)) = hints.get(hint_pos) else {
+        return HintRender::OutOfBounds {
+            hint_pos,
+            hints_len: hints.len(),
+        };
+    };
+    let pos = *pos;
+
+    let test_pos = hint.find(input).unwrap_or(usize::MAX);
+    if pos != test_pos {
+        return HintRender::Mismatch { pos, test_pos };
+    }
+
+    if pos == 0 && hint.len() == input_len {
+        return HintRender::Full;
+    }
+
+    let hint_left = &hint[..pos];
+    let hint_right = &hint[(pos + input_len)..];
+
+    let mut colored_hint = input.to_string();
+    let input_pos = if hint_left.is_empty() {
+        0
+    } else {
+        colored_hint = format!("&7{hint_left}&f{colored_hint}");
+        hint_left.len() + 4 // 4 for &7 and &f
+    };
+
+    if !hint_right.is_empty() {
+        colored_hint = format!("{colored_hint}&7{hint_right}");
+    }
+
+    if colored_hint.len() > 64 && input_pos == 0 && input_len > 2 {
+        // it will be cut off, so shift it left since there was no left hint
+        colored_hint = colored_hint[(input_len - 2)..].to_string();
+    }
+
+    HintRender::Colored(colored_hint)
 }
 
 impl Chat {
@@ -75,10 +126,9 @@ impl Chat {
         self.hints = None;
         self.hint_pos = 0;
 
-        let input = self.get_text();
-        let input = input.trim().to_string();
+        let input = normalize_sentence(&self.get_text());
 
-        if !input.is_empty() && input.len() >= 2 {
+        if input.len() >= 2 {
             if let Some(chatsounds) = self.chatsounds.lock().await.as_mut() {
                 let results: Vec<_> = chatsounds
                     .search(&input)
@@ -108,57 +158,22 @@ impl Chat {
     }
 
     fn render_hints(&mut self) {
-        if let Some(hints) = &self.hints {
-            let input = self.search.as_ref().unwrap().clone();
-            let input_len = input.len();
-
-            if hints.get(self.hint_pos).is_none() {
-                print(format!("panic! {} {}", self.hint_pos, hints.len()));
-                return;
-            }
-            let (pos, hint) = &hints[self.hint_pos];
-            let pos = *pos;
-
-            let test_pos = hint.find(&input).unwrap_or(usize::MAX);
-            if pos != test_pos {
-                print(format!("panic! {pos} != {test_pos}"));
-                return;
-            }
-
-            if pos == 0 && hint.len() == input_len {
-                // matched fully
-                status_forever(input);
-                return;
-            }
-
-            let hint_left = &hint[..pos];
-            let hint_right = &hint[(pos + input_len)..];
-
-            let mut colored_hint = input;
-            let input_pos = if hint_left.is_empty() {
-                0
-            } else {
-                colored_hint = format!("&7{hint_left}&f{colored_hint}");
-                hint_left.len() + 4 // 4 for &7 and &f
-            };
-
-            if !hint_right.is_empty() {
-                colored_hint = format!("{colored_hint}&7{hint_right}");
-            }
-
-            if colored_hint.len() > 64 {
-                // it will be cut off, so shift it
-
-                if input_pos == 0 && input_len > 2 {
-                    // there was no left hint so just shift left
-
-                    colored_hint = colored_hint[(input_len - 2)..].to_string();
-                }
-            }
-
-            status_forever(colored_hint);
-        } else {
+        let Some(hints) = &self.hints else {
             status_forever("");
+            return;
+        };
+
+        let input = self.search.as_ref().unwrap();
+        match format_hint(input, hints, self.hint_pos) {
+            HintRender::OutOfBounds {
+                hint_pos,
+                hints_len,
+            } => error!("hint_pos {hint_pos} out of bounds (hints_len={hints_len})"),
+            HintRender::Mismatch { pos, test_pos } => {
+                error!("chatsounds search pos {pos} != hint.find result {test_pos}");
+            }
+            HintRender::Full => status_forever(input.clone()),
+            HintRender::Colored(s) => status_forever(s),
         }
     }
 
@@ -184,7 +199,11 @@ impl Chat {
 
     fn handle_char_insert(&mut self, chr: char) {
         if self.cursor_pos > self.text.len() {
-            print(format!("panic! {} > {}", self.cursor_pos, self.text.len()));
+            error!(
+                "cursor_pos {} > text.len() {}",
+                self.cursor_pos,
+                self.text.len()
+            );
             return;
         }
 
@@ -459,6 +478,117 @@ impl Chat {
                 self.handle_char_insert(key);
                 self.update_hints().await;
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chatsounds::normalize_sentence;
+
+    use super::{HintRender, format_hint};
+
+    fn hint(pos: usize, sentence: &str) -> (usize, String) {
+        (pos, sentence.to_string())
+    }
+
+    // Regression: chatsounds 6.0 normalizes inputs before matching, so
+    // search positions refer to the normalized stored key. If the plugin
+    // stores the raw typed input instead, `hint.find(raw_input)` returns
+    // None whenever the raw input contains characters that normalize away
+    // (`/`, `_`, `-`, `.`, `'`, etc.), surfacing as
+    // `panic! <pos> != 18446744073709551615` in chat.
+    #[test]
+    fn raw_input_with_slash_reproduces_pre_fix_mismatch() {
+        let hints = vec![hint(0, "foo bar")];
+        assert_eq!(
+            format_hint("/foo", &hints, 0),
+            HintRender::Mismatch {
+                pos: 0,
+                test_pos: usize::MAX,
+            },
+        );
+    }
+
+    #[test]
+    fn normalized_input_with_slash_renders() {
+        let hints = vec![hint(0, "foo bar")];
+        let input = normalize_sentence("/foo");
+        assert_eq!(input, "foo");
+        assert_eq!(
+            format_hint(&input, &hints, 0),
+            HintRender::Colored("foo&7 bar".to_string()),
+        );
+    }
+
+    #[test]
+    fn full_match_short_circuits() {
+        let hints = vec![hint(0, "foo bar")];
+        let input = normalize_sentence("foo bar");
+        assert_eq!(format_hint(&input, &hints, 0), HintRender::Full);
+    }
+
+    #[test]
+    fn mid_sentence_match_includes_left_context() {
+        let hints = vec![hint(4, "foo bar")];
+        let input = normalize_sentence("bar");
+        assert_eq!(
+            format_hint(&input, &hints, 0),
+            HintRender::Colored("&7foo &fbar".to_string()),
+        );
+    }
+
+    #[test]
+    fn out_of_bounds_index_reports_oob() {
+        let hints = vec![hint(0, "foo bar")];
+        assert_eq!(
+            format_hint("foo", &hints, 5),
+            HintRender::OutOfBounds {
+                hint_pos: 5,
+                hints_len: 1,
+            },
+        );
+    }
+
+    // The fix relies on `chatsounds.search` running `normalize_sentence`
+    // internally and on `normalize_sentence` being idempotent — we
+    // normalize once before calling search, then trust that the position
+    // search returns matches `hint.find(stored_normalized_input)`. If a
+    // future chatsounds bump changes normalization rules, this guard
+    // fails before the in-game `Mismatch` log path ever fires.
+    #[test]
+    fn normalize_sentence_is_idempotent() {
+        for raw in [
+            "/foo",
+            "we've",
+            "foo-bar",
+            "FOO BAR",
+            "foo  bar",
+            "  leading",
+            "trailing  ",
+            "1,000",
+            "hello_world.wav",
+        ] {
+            let once = normalize_sentence(raw);
+            let twice = normalize_sentence(&once);
+            assert_eq!(once, twice, "raw={raw:?}");
+        }
+    }
+
+    // Each raw input here contains a character that `normalize_sentence`
+    // rewrites — apostrophe dropped, dash/underscore/whitespace runs
+    // collapsed to a single space. All should render without tripping the
+    // mismatch path.
+    #[test]
+    fn inputs_with_normalize_artifacts_render_cleanly() {
+        let hints = vec![hint(0, "weve got")];
+        for raw in ["we've got", "we've  got", "we've-got", "we've_got"] {
+            let input = normalize_sentence(raw);
+            let result = format_hint(&input, &hints, 0);
+            assert!(
+                matches!(result, HintRender::Full | HintRender::Colored(_)),
+                "raw={raw:?} normalized={input:?} produced {result:?}",
+            );
         }
     }
 }
