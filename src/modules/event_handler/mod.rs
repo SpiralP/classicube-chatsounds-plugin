@@ -1,7 +1,7 @@
 mod outgoing_events;
 mod types;
 
-use std::{cell::Cell, os::raw::c_int, ptr, slice};
+use std::{cell::Cell, os::raw::c_int};
 
 use classicube_helpers::{
     events::{
@@ -9,12 +9,12 @@ use classicube_helpers::{
         input,
         window::FocusChangedEventHandler,
     },
+    protocol_hook::ProtocolMessageHook,
     tick::TickEventHandler,
 };
 use classicube_sys::{
     Chat_Add, Chat_AddOf, Event_RaiseInput, Event_RaiseInt, InputDevice, InputEvents,
-    MsgType_MSG_TYPE_NORMAL, Net_Handler, OPCODE__OPCODE_MESSAGE, OwnedString, Protocol, Server,
-    UNSAFE_GetString, WindowInfo,
+    MsgType_MSG_TYPE_NORMAL, OwnedString, Server, WindowInfo,
 };
 use crossbeam_channel::{Receiver, Sender, unbounded};
 pub use outgoing_events::*;
@@ -24,7 +24,6 @@ use tracing::debug;
 pub use self::types::*;
 use crate::{
     helpers::{is_global_cs_message, is_global_csent_message, is_global_cspos_message},
-    is_plugin_active,
     modules::Module,
 };
 
@@ -34,13 +33,6 @@ thread_local!(
 
 thread_local!(
     static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = const { Cell::new(None) };
-);
-
-// Cell because Net_Handler (Option<unsafe extern "C" fn(...)>) is Copy.
-// Semantics: None == our hook is not installed; Some(prior) == installed,
-// `prior` is what Protocol.Handlers[OPCODE_MESSAGE] held before we patched.
-thread_local!(
-    static OLD_MESSAGE_HANDLER: Cell<Net_Handler> = const { Cell::new(None) };
 );
 
 pub static OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
@@ -56,6 +48,7 @@ pub struct EventHandlerModule {
     incoming_event_listeners: Vec<Box<dyn IncomingEventListener>>,
     outgoing_event_sender: Option<Sender<OutgoingEvent>>,
     outgoing_event_receiver: Receiver<OutgoingEvent>,
+    message_hook: Option<ProtocolMessageHook>,
     chat_received: ChatReceivedEventHandler,
     input_down: input::Down2EventHandler,
     input_press: input::PressEventHandler,
@@ -73,6 +66,7 @@ impl EventHandlerModule {
             incoming_event_listeners: Vec::new(),
             outgoing_event_sender: Some(outgoing_event_sender),
             outgoing_event_receiver,
+            message_hook: None,
             chat_received: ChatReceivedEventHandler::new(),
             input_down: input::Down2EventHandler::new(),
             input_press: input::PressEventHandler::new(),
@@ -159,94 +153,6 @@ impl EventHandlerModule {
     }
 }
 
-extern "C" fn message_handler(data: *mut u8) {
-    if is_plugin_active() {
-        use classicube_sys::MsgType;
-
-        let bytes = unsafe { slice::from_raw_parts(data, 65) };
-        let message_type = MsgType::from(bytes[0]);
-
-        if message_type == MsgType_MSG_TYPE_NORMAL
-            && let Some(ptr) = EVENT_HANDLER_MODULE.get()
-        {
-            let text = unsafe { UNSAFE_GetString(&bytes[1..]) }.to_string();
-            let module = unsafe { &mut *ptr };
-
-            if !module.simulating {
-                module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                    text.clone(),
-                    message_type,
-                ));
-                module.handle_outgoing_events();
-            }
-
-            if let Some(text) = is_global_cs_message(&text) {
-                debug!(?text, "hide global cs message");
-                return;
-            } else if let Some((text, pos)) = is_global_cspos_message(&text) {
-                debug!(?text, ?pos, "hide global cspos message");
-                return;
-            } else if let Some((text, id)) = is_global_csent_message(&text) {
-                debug!(?text, ?id, "hide global csent message");
-                return;
-            }
-        }
-    }
-
-    OLD_MESSAGE_HANDLER.with(|cell| {
-        if let Some(f) = cell.get() {
-            unsafe {
-                f(data);
-            }
-        }
-    });
-}
-
-fn is_our_handler(handler: Net_Handler) -> bool {
-    handler.is_some_and(|h| ptr::fn_addr_eq(h, message_handler as unsafe extern "C" fn(*mut u8)))
-}
-
-pub fn install_message_handler() {
-    let current = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
-
-    // Already at the top of the chain — nothing to do.
-    if is_our_handler(current) {
-        return;
-    }
-
-    // We previously installed ourselves and another plugin has since stacked
-    // its own hook on top. Re-pushing to the top would set
-    //   slot = us, OLD_MESSAGE_HANDLER = other_plugin
-    // while other_plugin's saved "old" still points at us — an infinite
-    // recursion through our own handler. Leave the chain alone; we're still
-    // reachable via the existing chain.
-    if OLD_MESSAGE_HANDLER.with(Cell::get).is_some() {
-        return;
-    }
-
-    unsafe {
-        Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = Some(message_handler);
-    }
-    OLD_MESSAGE_HANDLER.with(|cell| cell.set(current));
-}
-
-pub fn uninstall_message_handler() {
-    let current = unsafe { Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] };
-
-    if is_our_handler(current) {
-        // We're still on top — safe to splice ourselves out.
-        let prior = OLD_MESSAGE_HANDLER.with(Cell::take);
-        unsafe {
-            Protocol.Handlers[OPCODE__OPCODE_MESSAGE as usize] = prior;
-        }
-    }
-    // Else: another plugin stacked on top of us. Overwriting the slot would
-    // drop their hook out of the chain. Leave Protocol.Handlers alone, and
-    // keep OLD_MESSAGE_HANDLER populated — our message_handler is still
-    // reachable via the chain and needs OLD to fall through to the original
-    // while is_plugin_active() is false.
-}
-
 impl Module for EventHandlerModule {
     fn load(&mut self) {
         {
@@ -261,7 +167,33 @@ impl Module for EventHandlerModule {
         EVENT_HANDLER_MODULE.set(Some(ptr));
 
         if unsafe { Server.IsSinglePlayer } == 0 {
-            install_message_handler();
+            self.message_hook = ProtocolMessageHook::install(move |text: &str| {
+                let Some(ptr) = EVENT_HANDLER_MODULE.get() else {
+                    return false;
+                };
+                let module = unsafe { &mut *ptr };
+
+                if !module.simulating {
+                    module.handle_incoming_event(&IncomingEvent::ChatReceived(
+                        text.to_string(),
+                        MsgType_MSG_TYPE_NORMAL,
+                    ));
+                    module.handle_outgoing_events();
+                }
+
+                if let Some(text) = is_global_cs_message(text) {
+                    debug!(?text, "hide global cs message");
+                    true
+                } else if let Some((text, pos)) = is_global_cspos_message(text) {
+                    debug!(?text, ?pos, "hide global cspos message");
+                    true
+                } else if let Some((text, id)) = is_global_csent_message(text) {
+                    debug!(?text, ?id, "hide global csent message");
+                    true
+                } else {
+                    false
+                }
+            });
         } else {
             self.chat_received.on(
                 move |ChatReceivedEvent {
@@ -343,10 +275,10 @@ impl Module for EventHandlerModule {
     }
 
     fn unload(&mut self) {
-        // Remove our message_handler from Protocol.Handlers before tearing
-        // down per-load state, so it can't fire during the gap and read
-        // dangling pointers.
-        uninstall_message_handler();
+        // Drop the message hook first — uninstalls from Protocol.Handlers when on
+        // top and always clears the callback, so the trampoline can no longer
+        // reach per-load state after this point.
+        self.message_hook = None;
 
         // Drop the sender before EventHandlerModule (and thus its Receiver)
         // is dropped, so any outgoing_events::new_outgoing_event during the
