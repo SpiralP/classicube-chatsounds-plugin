@@ -4,12 +4,12 @@ mod types;
 use std::{cell::Cell, os::raw::c_int};
 
 use classicube_helpers::{
+    chat::ProtocolMessageHook,
     events::{
         chat::{ChatReceivedEvent, ChatReceivedEventHandler},
         input,
         window::FocusChangedEventHandler,
     },
-    protocol_hook::ProtocolMessageHook,
     tick::TickEventHandler,
 };
 use classicube_sys::{
