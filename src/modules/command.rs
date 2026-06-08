@@ -144,10 +144,6 @@ impl Module for CommandModule {
     fn load(&mut self) {
         OWNED_COMMAND.with(|cell| {
             if cell.borrow().is_some() {
-                print(
-                    "&eChatsounds: /client Chatsounds already registered (skipping \
-                     re-registration on hot reload)",
-                );
                 return;
             }
             let mut cmd = OwnedChatCommand::new(

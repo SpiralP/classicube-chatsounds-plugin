@@ -1,7 +1,10 @@
 mod outgoing_events;
 mod types;
 
-use std::{cell::Cell, os::raw::c_int};
+use std::{
+    cell::{Cell, RefCell},
+    os::raw::c_int,
+};
 
 use classicube_helpers::{
     chat::ProtocolMessageHook,
@@ -35,6 +38,15 @@ thread_local!(
     static EVENT_HANDLER_MODULE: Cell<Option<*mut EventHandlerModule>> = const { Cell::new(None) };
 );
 
+// Persistent across load/unload cycles: Protocol.Handlers is wiped by the
+// Protocol component's OnReset (which fires before this plugin's Reset), so
+// we keep the hook handle alive and call reinstall() each cycle rather than
+// dropping and re-installing (which would trip the IN_CHAIN veto and silently
+// skip the re-push).
+thread_local!(
+    static MESSAGE_HOOK: RefCell<Option<ProtocolMessageHook>> = const { RefCell::new(None) };
+);
+
 pub static OUTGOING_SENDER: Mutex<Option<Sender<OutgoingEvent>>> = Mutex::new(None);
 
 pub trait IncomingEventListener {
@@ -48,7 +60,6 @@ pub struct EventHandlerModule {
     incoming_event_listeners: Vec<Box<dyn IncomingEventListener>>,
     outgoing_event_sender: Option<Sender<OutgoingEvent>>,
     outgoing_event_receiver: Receiver<OutgoingEvent>,
-    message_hook: Option<ProtocolMessageHook>,
     chat_received: ChatReceivedEventHandler,
     input_down: input::Down2EventHandler,
     input_press: input::PressEventHandler,
@@ -66,7 +77,6 @@ impl EventHandlerModule {
             incoming_event_listeners: Vec::new(),
             outgoing_event_sender: Some(outgoing_event_sender),
             outgoing_event_receiver,
-            message_hook: None,
             chat_received: ChatReceivedEventHandler::new(),
             input_down: input::Down2EventHandler::new(),
             input_press: input::PressEventHandler::new(),
@@ -154,6 +164,10 @@ impl EventHandlerModule {
 }
 
 impl Module for EventHandlerModule {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "single-function event wiring; no natural split"
+    )]
     fn load(&mut self) {
         {
             let mut outgoing_sender = OUTGOING_SENDER.lock();
@@ -167,31 +181,40 @@ impl Module for EventHandlerModule {
         EVENT_HANDLER_MODULE.set(Some(ptr));
 
         if unsafe { Server.IsSinglePlayer } == 0 {
-            self.message_hook = ProtocolMessageHook::install(move |text: &str| {
-                let Some(ptr) = EVENT_HANDLER_MODULE.get() else {
-                    return false;
-                };
-                let module = unsafe { &mut *ptr };
-
-                if !module.simulating {
-                    module.handle_incoming_event(&IncomingEvent::ChatReceived(
-                        text.to_string(),
-                        MsgType_MSG_TYPE_NORMAL,
-                    ));
-                    module.handle_outgoing_events();
-                }
-
-                if let Some(text) = is_global_cs_message(text) {
-                    debug!(?text, "hide global cs message");
-                    true
-                } else if let Some((text, pos)) = is_global_cspos_message(text) {
-                    debug!(?text, ?pos, "hide global cspos message");
-                    true
-                } else if let Some((text, id)) = is_global_csent_message(text) {
-                    debug!(?text, ?id, "hide global csent message");
-                    true
+            MESSAGE_HOOK.with_borrow_mut(|hook| {
+                if let Some(hook) = hook {
+                    // Reconnect: Protocol component's OnReset fires before ours
+                    // and zeros Protocol.Handlers; re-push our trampoline onto
+                    // the restored stock handler.
+                    hook.reinstall();
                 } else {
-                    false
+                    *hook = ProtocolMessageHook::install(move |text: &str| {
+                        let Some(ptr) = EVENT_HANDLER_MODULE.get() else {
+                            return false;
+                        };
+                        let module = unsafe { &mut *ptr };
+
+                        if !module.simulating {
+                            module.handle_incoming_event(&IncomingEvent::ChatReceived(
+                                text.to_string(),
+                                MsgType_MSG_TYPE_NORMAL,
+                            ));
+                            module.handle_outgoing_events();
+                        }
+
+                        if let Some(text) = is_global_cs_message(text) {
+                            debug!(?text, "hide global cs message");
+                            true
+                        } else if let Some((text, pos)) = is_global_cspos_message(text) {
+                            debug!(?text, ?pos, "hide global cspos message");
+                            true
+                        } else if let Some((text, id)) = is_global_csent_message(text) {
+                            debug!(?text, ?id, "hide global csent message");
+                            true
+                        } else {
+                            false
+                        }
+                    });
                 }
             });
         } else {
@@ -275,10 +298,9 @@ impl Module for EventHandlerModule {
     }
 
     fn unload(&mut self) {
-        // Drop the message hook first — uninstalls from Protocol.Handlers when on
-        // top and always clears the callback, so the trampoline can no longer
-        // reach per-load state after this point.
-        self.message_hook = None;
+        // The message hook (MESSAGE_HOOK thread-local) is process-resident and
+        // not dropped here; EVENT_HANDLER_MODULE.set(None) below makes the
+        // trampoline inert until the next load() calls reinstall().
 
         // Drop the sender before EventHandlerModule (and thus its Receiver)
         // is dropped, so any outgoing_events::new_outgoing_event during the
