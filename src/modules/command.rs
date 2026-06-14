@@ -16,13 +16,13 @@ use crate::{
     modules::{
         EventHandlerModule, FutureShared, FuturesModule, Module, OptionModule, SyncShared,
         chatsounds::{ChatsoundsModule, VOLUME_NORMAL, random::get_rng},
+        option::{AUTOCOMPLETE_SETTING_NAME, MUTE_LOSE_FOCUS_SETTING_NAME, VOLUME_SETTING_NAME},
     },
     printer::print,
 };
 
-pub const MUTE_LOSE_FOCUS_SETTING_NAME: &str = "chatsounds-mute-lose-focus";
-pub const VOLUME_SETTING_NAME: &str = "chatsounds-volume";
-
+const AUTOCOMPLETE_COMMAND_HELP: &str =
+    "&a/client chatsounds autocomplete [true|false] &e(Default true)";
 const MUTE_LOSE_FOCUS_COMMAND_HELP: &str =
     "&a/client chatsounds mute-lose-focus [true|false] &e(Default true)";
 const PLAY_COMMAND_HELP: &str = "&a/client chatsounds play [text]";
@@ -63,10 +63,24 @@ impl CommandModule {
         let chatsounds = chatsounds.as_mut().ok_or_else(|| anyhow!("no"))?;
 
         match args.as_slice() {
+            ["autocomplete"] => {
+                let autocomplete = OptionModule::autocomplete();
+
+                print(format!(
+                    "{AUTOCOMPLETE_SETTING_NAME} (Currently {autocomplete})"
+                ));
+            }
+
+            ["autocomplete", autocomplete] => {
+                let autocomplete = autocomplete.parse::<bool>()?;
+
+                OptionModule::set_autocomplete(autocomplete);
+
+                print(format!("&eSet autocomplete to {autocomplete}"));
+            }
+
             ["mute-lose-focus"] => {
-                let mute_lose_focus = OptionModule::get(MUTE_LOSE_FOCUS_SETTING_NAME)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(true);
+                let mute_lose_focus = OptionModule::mute_lose_focus();
 
                 print(format!(
                     "{MUTE_LOSE_FOCUS_SETTING_NAME} (Currently {mute_lose_focus})"
@@ -76,7 +90,7 @@ impl CommandModule {
             ["mute-lose-focus", mute_lose_focus] => {
                 let mute_lose_focus = mute_lose_focus.parse::<bool>()?;
 
-                OptionModule::set(MUTE_LOSE_FOCUS_SETTING_NAME, format!("{mute_lose_focus}"));
+                OptionModule::set_mute_lose_focus(mute_lose_focus);
 
                 print(format!("&eSet mute-lose-focus to {mute_lose_focus}"));
             }
@@ -115,6 +129,7 @@ impl CommandModule {
 
             _ => {
                 let current_volume = chatsounds.volume() / VOLUME_NORMAL;
+                print(AUTOCOMPLETE_COMMAND_HELP);
                 print(MUTE_LOSE_FOCUS_COMMAND_HELP);
                 print(PLAY_COMMAND_HELP);
                 print(RELOAD_COMMAND_HELP);

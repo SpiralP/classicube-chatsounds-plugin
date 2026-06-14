@@ -14,7 +14,6 @@ use crate::{
     modules::{
         FutureShared, FuturesModule, OptionModule, SyncShared, ThreadShared,
         chatsounds::random::{GLOBAL_NAME, get_rng},
-        command::MUTE_LOSE_FOCUS_SETTING_NAME,
         event_handler::{IncomingEvent, IncomingEventListener},
     },
 };
@@ -230,9 +229,7 @@ impl IncomingEventListener for ChatsoundsEventListener {
             }
 
             IncomingEvent::FocusChanged(focused) => {
-                let mute_lose_focus = OptionModule::get(MUTE_LOSE_FOCUS_SETTING_NAME)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(true);
+                let mute_lose_focus = OptionModule::mute_lose_focus();
 
                 if mute_lose_focus {
                     let chatsounds = self.chatsounds.clone();

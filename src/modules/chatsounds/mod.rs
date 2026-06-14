@@ -15,7 +15,7 @@ use self::event_listener::ChatsoundsEventListener;
 use super::{FutureShared, SyncShared};
 use crate::{
     modules::{
-        EventHandlerModule, FuturesModule, Module, OptionModule, command::VOLUME_SETTING_NAME,
+        EventHandlerModule, FuturesModule, Module, OptionModule, option::VOLUME_SETTING_NAME,
     },
     printer::print,
 };

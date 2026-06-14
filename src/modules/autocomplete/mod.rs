@@ -60,6 +60,10 @@ impl AutocompleteEventListener {
 
         FuturesModule::spawn_future(async move {
             while let Some(event) = receiver.next().await {
+                if !OptionModule::autocomplete() {
+                    continue;
+                }
+
                 match event {
                     IncomingEvent::InputPress(key) => {
                         chat.handle_key_press(key).await;
