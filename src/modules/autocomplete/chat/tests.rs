@@ -1,6 +1,6 @@
 use chatsounds::normalize_sentence;
 
-use super::{HintRender, format_hint, search_player_names};
+use super::{HintRender, format_hint, search_player_names, starts_with_symbol};
 
 fn hint(pos: usize, sentence: &str) -> (usize, String) {
     (pos, sentence.to_string())
@@ -8,6 +8,24 @@ fn hint(pos: usize, sentence: &str) -> (usize, String) {
 
 fn names(xs: &[&str]) -> Vec<String> {
     xs.iter().map(ToString::to_string).collect()
+}
+
+// --- starts_with_symbol ---
+
+#[test]
+fn starts_with_symbol_detects_command_and_mention() {
+    assert!(starts_with_symbol("/foo"));
+    assert!(starts_with_symbol("@spir"));
+    assert!(starts_with_symbol("!cmd"));
+    assert!(starts_with_symbol("  @spaced"));
+}
+
+#[test]
+fn starts_with_symbol_allows_plain_text() {
+    assert!(!starts_with_symbol("spir"));
+    assert!(!starts_with_symbol("2spooky"));
+    assert!(!starts_with_symbol("  hello"));
+    assert!(!starts_with_symbol(""));
 }
 
 // --- format_hint ---

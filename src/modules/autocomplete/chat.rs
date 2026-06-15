@@ -72,6 +72,13 @@ fn search_player_names(names: &[String], input: &str) -> Vec<(usize, String)> {
     out
 }
 
+fn starts_with_symbol(text: &str) -> bool {
+    text.trim_start()
+        .chars()
+        .next()
+        .is_some_and(|c| !c.is_alphanumeric())
+}
+
 fn format_hint(input: &str, hints: &[(usize, String)], hint_pos: usize) -> HintRender {
     let input_len = input.len();
 
@@ -147,9 +154,14 @@ impl Chat {
         self.hints = None;
         self.hint_pos = 0;
 
-        let input = normalize_sentence(&self.get_text());
+        let raw = self.get_text();
+        let input = normalize_sentence(&raw);
 
-        if input.len() >= 2 {
+        // Commands (`/...`) and mentions (`@...`) start with a symbol that is not
+        // part of any chatsound or player name. Completing them would rewrite the
+        // whole line and drop the leading symbol, so leave hints empty and let
+        // ClassiCube's native Tab handling apply instead.
+        if !starts_with_symbol(&raw) && input.len() >= 2 {
             let mut results: Vec<(usize, String)> = Vec::new();
 
             // Player usernames first (case-insensitive), then chatsounds.
@@ -394,9 +406,9 @@ impl Chat {
                 let (_pos, sentence) = &hints[show_pos];
                 let sentence = sentence.clone();
                 self.set_text(sentence);
+                self.render_hints();
             }
-
-            self.render_hints();
+            // When hints is None, do nothing -- native Tab's display stands.
         }
     }
 
@@ -497,7 +509,10 @@ impl Chat {
                 return;
             }
 
-            if key.is_alphanumeric() || key == ' ' {
+            // Track every printable char (not just alphanumeric + space) so the
+            // shadow buffer faithfully mirrors ClassiCube's input -- this lets
+            // `update_hints` notice a leading `@` and defer to native Tab.
+            if !key.is_control() {
                 self.handle_char_insert(key);
                 self.update_hints().await;
             }
