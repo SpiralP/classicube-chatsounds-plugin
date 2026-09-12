@@ -14,7 +14,7 @@ chatsounds = { git = "https://github.com/SpiralP/rust-chatsounds.git", branch = 
 classicube-helpers = { git = "https://github.com/SpiralP/rust-classicube-helpers.git", branch = "main" }
 classicube-sys = "=6.0.4"
 color-backtrace = { git = "https://github.com/SpiralP/color-backtrace-msgbox.git", branch = "master" }
-crossbeam-channel = "=0.5.16"
+crossbeam-channel = "=0.5.17"
 futures = "=0.3.34"
 kira = { version = "=0.12.4", default-features = false }
 ncollide3d = "=0.33.0"
